@@ -45,6 +45,16 @@
 .pagina-boletim .nota-troca { margin-top: 10px; }
 .nota-boletim { margin: 0 0 16px; padding: 10px 14px; border: 1px dashed var(--borda); border-radius: 6px; background: var(--lavagem); color: var(--texto-2); font-size: 13px; }
 
+/* Sinais do mês (src/estatico/sinais.py, bloco_boletim): nível em texto, frase e link para o gráfico no painel. */
+.lista-sinais { display: grid; margin: 8px 0 0; padding: 0; list-style: none; }
+.lista-sinais li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 9px 0; border-top: 1px solid var(--grade); min-width: 0; }
+.lista-sinais .sinal-nivel { flex: none; }
+.lista-sinais .sinal-frase { flex: 1 1 24ch; min-width: 0; font-size: 14px; line-height: 1.45; letter-spacing: 0; }
+.lista-sinais a { color: var(--titulo); font: 400 12px/1.4 var(--mono); min-height: 24px; display: inline-flex; align-items: center; }
+.pagina-boletim .sinais-boletim .nota a { color: var(--titulo); }
+.pagina-boletim .sinais-boletim .nota + .nota { margin-top: 10px; }
+.pagina-boletim .sinais-vazio { margin: 10px 0 0; color: var(--texto-2); }
+
 /* Navegação entre os meses: anterior, arquivo e próximo, como cartões. */
 .meses-boletim { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; margin: 8px 0 28px; }
 .meses-boletim a {

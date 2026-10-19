@@ -106,7 +106,8 @@ def test_lista_de_espera_no_fim_da_pagina_com_o_item_receber_alertas_no_menu():
     assert secoes.ids == [*dados, "lista-espera", "metodo"]
     # menu: as seções na ordem da página e, no fim, o convite, que rola até a lista (sem mexer no hash dos filtros)
     menu = re.search(r'<nav class="nav-pilula" id="nav-secoes".*?</nav>', html, re.S).group(0)
-    assert re.findall(r'<a href="#(\w+)" data-secao="\1">', menu) == [*dados, "metodo"]
+    # (os Sinais do mês vêm antes, logo depois do hero e fora do <main>: o primeiro item do menu)
+    assert re.findall(r'<a href="#(\w+)" data-secao="\1">', menu) == ["sinais", *dados, "metodo"]
     assert menu.rstrip().endswith('<a class="nav-alertas" href="#lista-espera" data-secao="lista-espera">Receber alertas</a>\n  </nav>')
     # o título é o alvo do foco do clique (t-<seção>, como nos blocos) e dá nome à seção
     assert '<section class="cartao grade lista-espera" aria-labelledby="t-lista-espera" id="lista-espera">' in html
