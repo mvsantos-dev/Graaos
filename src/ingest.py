@@ -664,15 +664,16 @@ def _no_periodo(df: pd.DataFrame, inicio: str, fim: str) -> pd.DataFrame:
     return df[(chave >= int(inicio.replace("-", ""))) & (chave <= int(fim.replace("-", "")))]
 
 
-def resumo(df: pd.DataFrame, inicio: str, fim: str, n: int = 5) -> str:
+def resumo(df: pd.DataFrame, inicio: str, fim: str, n: int = 5, serie: str = "") -> str:
     """Linhas, totais e os maiores países de origem e URFs por kg líquido no período."""
     df = _no_periodo(df, inicio, fim)
+    rotulo = f"{serie} " if serie else ""
     if df.empty:
-        return f"Sem dados gravados para {inicio} a {fim}."
+        return f"Sem dados gravados {rotulo}para {inicio} a {fim}."
     total_kg = df["kg_liquido"].sum()
     meses = len(df[["ano", "mes"]].drop_duplicates())
     linhas = [
-        f"Resumo {inicio} a {fim} (Fonte: Comex Stat/MDIC)",
+        f"Resumo {rotulo}{inicio} a {fim} (Fonte: Comex Stat/MDIC)",
         f"  Linhas: {_fmt(len(df))} | meses: {meses} | NCMs: {df['co_ncm'].nunique()}",
         f"  Total: {_fmt(total_kg / 1000)} t | US$ FOB {_fmt(df['vl_fob'].sum())}"
         f" | US$ CIF {_fmt(df['vl_cif'].sum())}",
@@ -854,7 +855,7 @@ def main(argv: list[str] | None = None) -> int:
                     cliente, args.inicio, args.fim, raw_dir=raw_dir, ncm_csv=config.NCM_INSUMOS_CSV,
                     forcar=args.forcar, ultimo=ultimo,
                 )
-                print(resumo(ler_insumos(raw_dir), inicio, fim))
+                print(resumo(ler_insumos(raw_dir), inicio, fim, serie="insumos do fósforo (enxofre e rocha fosfática, importação)"))
         if args.inicio and {"benchmark", "cambio"} & set(series):
             fontes = benchmark.ClienteFontes()
             if "benchmark" in series:

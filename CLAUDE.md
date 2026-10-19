@@ -6,8 +6,9 @@ pacote `src/` mantêm os nomes). **O repositório é PÚBLICO.**
 
 Módulos: **Fertilizantes**, o que existe hoje (no ar em https://radar.graaos.cloud/, e se
 apresenta como "Graaos · Fertilizantes"): importações brasileiras de fertilizantes (capítulo 31,
-posições 3102 a 3105), só com dados abertos oficiais: Comex Stat/MDIC, Pink Sheet do Banco
-Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
+posições 3102 a 3105), mais os insumos do fósforo (enxofre 2503 e rocha fosfática 2510, à parte)
+e os sinais de preço e de volume, só com dados abertos oficiais: Comex Stat/MDIC, Pink Sheet do
+Banco Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
 
 ## Regras inegociáveis
 
@@ -84,13 +85,17 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
 - Actions sempre em versões que rodam em Node 24 (`checkout@v6`, `setup-python@v6`,
   `setup-go@v6`, `configure-pages@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`).
   Antes de trocar uma versão, conferir `runs.using` no `action.yml` da tag.
-- Ingestão: `python -m src.ingest --inicio AAAA-MM [--fim AAAA-MM] [--serie todas|fertilizantes|soja|benchmark|cambio]`.
+- Ingestão: `python -m src.ingest --inicio AAAA-MM [--fim AAAA-MM] [--serie todas|fertilizantes|soja|insumos|benchmark|cambio]`.
   Opções em `python -m src.ingest --help`. `--ultimo-gravado` imprime o último mês completo,
-  o menor entre as quatro séries, sem chamar nenhuma fonte (`--por-serie`: uma linha por série).
+  o menor entre as cinco séries, sem chamar nenhuma fonte (`--por-serie`: uma linha por série).
 - Dados brutos: `data/raw/ano=AAAA/importacoes.parquet`, de 2015-01 a 2026-09 (61.460
   linhas, 1,6 MB). A coluna `ano` fica no caminho, não dentro do arquivo; leia com
   `src.ingest.ler_raw()`. A exportação de soja em grão (NCM 12019000, só FOB e kg) fica em
-  `data/raw_soja/ano=AAAA/exportacoes.parquet`; leia com `src.ingest.ler_soja()`. A Pink
+  `data/raw_soja/ano=AAAA/exportacoes.parquet`; leia com `src.ingest.ler_soja()`. A importação
+  de enxofre (2503) e rocha fosfática (2510.10 e 2510.20), o grupo `INSUMOS` (NCMs em
+  `data/ncm_insumos.csv`, separado do `ncm_fertilizantes.csv`), fica em
+  `data/raw_insumos/ano=AAAA/importacoes.parquet`, com as colunas de `data/raw/`; leia com
+  `src.ingest.ler_insumos()`. A Pink
   Sheet fica em `data/raw_benchmark/pink_sheet_mensal.csv` (US$/t nominal; `fonte.json` com
   edição, URL, sha256 e licença) e a PTAX em `data/raw_cambio/ptax_venda_media_mensal.csv`;
   leia com `src.benchmark.ler_pink()` e `ler_ptax()`.
@@ -191,19 +196,20 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
   (Chart.js ou dados que não carregam) vai no topo do conteúdo, sem apagá-lo.
 - Fase 4: `.github/workflows/atualizacao.yml` roda nos dias 1 a 15 de cada mês. Se o mês
   anterior já está gravado (`--ultimo-gravado`), encerra sem chamar nenhuma fonte; senão faz a
-  ingestão incremental das quatro séries (Pink Sheet e PTAX primeiro; o Comex Stat só até o
-  menor mês das duas), o transform e os testes e, se o mês completo
+  ingestão incremental das cinco séries (Pink Sheet e PTAX primeiro; o Comex Stat só até o
+  menor mês das duas), o transform, o `python -m src.sinais` e os testes e, se o mês completo
   avançou ou se há boletim novo (o do último mês faltava, ou foi refeito por dispatch), commita só `data/`
   e `boletins/` como github-actions[bot] e chama o `pages.yml` (via `workflow_call`, porque
   pushes com o GITHUB_TOKEN não disparam outros workflows). Os testes rodam sobre o mês
   recém-gravado: nunca fixar valores do último mês nos testes com dados versionados, nem
-  supor que as quatro séries terminam no mesmo mês. Mês completo = gravado nas quatro séries
-  (Comex Stat de fertilizantes e de soja, Pink Sheet, PTAX); se faltar alguma, nada é
+  supor que as cinco séries terminam no mesmo mês. Mês completo = gravado nas cinco séries
+  (Comex Stat de fertilizantes, de soja e de insumos, Pink Sheet, PTAX); se faltar alguma, nada é
   commitado e o run fica verde com aviso de qual falta (o Comex Stat segurado em `limite`,
   já publicado, aparece como retido, não como atrasado); a partir do dia 15, o job `prazo`
   (sem permissões nem checkout) fica vermelho dizendo qual. Falha de uma fonte (ou mês publicado
   que não vem, mesmo no meio do período) = job vermelho, nada commitado. Privilégios
-  separados: o job que roda Python é só leitura e entrega `data/` como artifact; o job do
+  separados: o job que roda Python é só leitura e entrega `data/` como artifact (com
+  `data/raw_insumos`, `data/ncm_insumos.csv` e `data/sinais.json`); o job do
   commit (único com `contents: write`) só roda git, com hooks desligados, e recusa mudança
   fora de `data/` e `boletins/`. Manter essa separação.
 - Fase 5: `src/llm.py` (provedores: `RADAR_LLM_PROVIDER` = anthropic, padrão com
@@ -230,8 +236,9 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
   chave) e `src/comparacao.py` (`benchmark_mensal.csv` e bloco "benchmark" do
   dashboard.json). Tabela fixa NCM → série: KCl 31042090 → Potassium chloride; ureia
   31021010 → Urea; MAP 31054000 → DAP (aproximação, a Pink Sheet não tem MAP); DAP
-  31053000/31053010/31053090 → DAP; TSP 31031030/31031100 → TSP. Rocha fosfática só é
-  ingerida. Base comparável: FOB×FOB (ureia, MAP/DAP, KCl até 2019-12); CIF×CFR (KCl desde
+  31053000/31053010/31053090 → DAP; TSP 31031030/31031100 → TSP. A rocha fosfática (Phosphate
+  rock, FOB Norte da África) fica fora dessa tabela: é comparada com a rocha importada em
+  `src/insumos.py`. Base comparável: FOB×FOB (ureia, MAP/DAP, KCl até 2019-12); CIF×CFR (KCl desde
   2020-01, TSP). Amostra pequena: < 10 mil t no mês (`CORTE_AMOSTRA_T`), fora dos gráficos e
   do boletim. CIF R$/t = CIF × PTAX venda média do mês. O spread NÃO é ágio: é referência de
   outro lugar e de outro momento de contrato; dizer isso em toda saída pública que o mostrar.
@@ -241,6 +248,40 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
   número já arredondado (nunca "−0,0"). O spread vai sempre com o
   preço do Brasil da sua base, e o do ano anterior entra como valor com posição, nunca como
   variação com sinal.
+- Insumos do fósforo (`src/insumos.py`; `insumos_mensal.csv`, `custo_insumo_map_mensal.csv` e
+  bloco "insumos" do dashboard.json): enxofre e rocha fosfática por mês (t, FOB, CIF, frete),
+  maiores origens por ano, rocha FOB x Pink Sheet Phosphate rock (FOB×FOB) e custo de insumo por
+  t de MAP = CIF do enxofre × `INSUMOS_COEF_ENXOFRE` + CIF da rocha × `INSUMOS_COEF_ROCHA`
+  (aproximação técnica, comentada no config.py) e a razão sobre o CIF do MAP (31054000). Os
+  insumos NUNCA entram nos totais, shares, mapa, rotas, estados nem no boletim de fertilizantes:
+  o transform recusa NCM 2503/2510 em `data/raw/` e um teste confere que os totais do dashboard
+  somam só os NCMs do `ncm_fertilizantes.csv`. Granel líquido (2807, 2809, 2814) fica fora.
+  Amostra pequena: < `INSUMOS_CORTE_AMOSTRA_T` do insumo (ou `CORTE_AMOSTRA_T` de MAP), fora dos
+  gráficos. Em toda saída pública que mostrar o custo de insumo: é uma aproximação, não o custo de
+  nenhuma empresa, e é no porto, não o preço ao produtor; o spread da rocha não é ágio e vai com o
+  FOB do Brasil. Coeficientes e cortes no texto do site vêm do dashboard.json (nada à mão).
+- Sinais (`src/sinais.py`, SÓ biblioteca padrão, o build importa `frase()` e `sinais_do_mes()`):
+  regras fixas, sem IA, mês a mês e sem olhar o futuro (cada mês só usa dados até ele), sobre o
+  dashboard.json: media_12m, variacao_3m, recorde, internacional, troca_p90 e ritmo_importacao,
+  para ureia, sulfato_amonio, kcl, map, dap, tsp, npk, enxofre e rocha (as mesmas chaves dos
+  marcos e das âncoras). Limites SÓ em config.py (`SINAIS_*`), repetidos em "limites". Mês
+  válido = volume mínimo (`SINAIS_VOLUME_MIN_T`, ou o de `SINAIS_VOLUME_MIN_T_PRODUTO`), CIF
+  presente e fora da amostra pequena; mês null (sem dado) não é zero. O limite é comparado com o
+  número já arredondado como a frase o mostra. Médias com `math.fsum` (o `sum()` de floats mudou
+  no Python 3.12). `data/sinais.json`: formato versão 1 estável e documentado no README (campo
+  novo pode entrar; sair, renomear ou mudar o sentido de um campo = `versao` 2), um sinal por
+  linha, sem data de geração; regenerar com `python -m src.sinais` sempre que o dashboard.json
+  mudar (o teste "em dia" reprova). Troca sempre "no porto", nunca em R$.
+- Marcos de mercado (`data/eventos.yml`, editado à mão pelo mantenedor; lido por `src/eventos.py`,
+  só biblioteca padrão, parser estrito de um subconjunto do YAML: erro derruba o build; sem o
+  arquivo, aviso e nenhum marco; `python -m src.eventos [arquivo]` confere). Campos `data`
+  (AAAA-MM-DD ou AAAA-MM), `titulo`, `fonte_url` (https:// em minúsculas) e `produtos` (as chaves
+  dos sinais). `src/estatico/marcos.py` põe o JSON escapado no `#marcos-dados`; o `pluginMarcos`
+  do Chart.js (só registrado com eventos) desenha uma linha vertical discreta no mês do evento nos
+  gráficos dos produtos citados (`plugins.marcos.produtos` ou o registro `MARCOS_GRAFICOS`), com
+  dica e o link da fonte na linha "Marcos" embaixo do cartão; tokens `--marco` e `--marco-forte`.
+  Sem eventos, a página fica igual pixel a pixel. O marco é anotação, não dado oficial: nunca
+  dizer que ele causou a variação.
 - Mapa de fluxos (seção do dashboard): `src/mapa.py` roda só em desenvolvimento e gera a base
   de pontos `dashboard/assets/mapa-pontos.json` (Natural Earth v5.1.2 1:110m, grade de 1,5°,
   ISO3; a mesma da hero, não criar outra; com o continente de cada país) e as tabelas de
@@ -379,7 +420,8 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
 - Não commitar dados grandes: se `data/raw/` passar de ~20 MB, colocá-lo no `.gitignore`
   e explicar no README como gerar.
 - Roadmap: 1 ingestão → 2 transform → 3 dashboard → 4 Action mensal → 5 boletim com IA
-  → 6 benchmark internacional e câmbio (feitas) → 7 logística portuária ANTAQ (fila, espera,
+  → 6 benchmark internacional e câmbio (feitas, e depois delas insumos do fósforo, sinais e
+  marcos) → 7 logística portuária ANTAQ (fila, espera,
   terminais) → 8 demanda e cobertura (CONAB) → 9 projeção de curto prazo → 10 MCP com o
   Claude Desktop. Não adiantar fases sem pedido.
 

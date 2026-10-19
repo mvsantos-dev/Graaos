@@ -91,7 +91,7 @@ def test_cli_inclui_insumos_em_todas_as_series_e_no_ultimo_gravado(tmp_path, mon
     assert ingest.main(["--inicio", "2025-01", "--pausa", "0"]) == 0
     assert [c["flow"] for c in api.corpos] == ["import", "export", "import"]
     assert api.corpos[-1]["filters"] == [{"filter": "ncm", "values": ["25101010"]}]
-    capsys.readouterr()
+    assert "Resumo insumos do fósforo" in capsys.readouterr().out
     # o mês completo exige as três séries do Comex Stat
     ingest.gravar_ano(ingest.normalizar([registro(2025, 3)], TABELAS), 2025, dirs["fertilizantes"])
     assert ingest.main(["--ultimo-gravado", "--por-serie"]) == 0
