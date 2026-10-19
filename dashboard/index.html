@@ -605,6 +605,8 @@
   </footer>
 </div>
 <div class="dica" id="dica" hidden></div>
+<!-- Marcos de mercado (data/eventos.yml), postos aqui pelo build (src/estatico/marcos.py) -->
+<script type="application/json" id="marcos-dados"></script>
 
 <script>
 "use strict";
@@ -882,8 +884,163 @@ const pluginLimiar = {
   },
 };
 
+// --- Marcos de mercado (data/eventos.yml) --------------------------------------------------
+// O build (src/estatico/marcos.py) põe os eventos no #marcos-dados. Cada gráfico de produto diz
+// quais produtos mostra (plugins.marcos.produtos, no desenho; os de produto fixo, pelo registro
+// MARCOS_GRAFICOS) e ganha uma linha vertical discreta no mês de cada evento deles que cai no eixo
+// x, com um losango no topo. Perto da linha, a dica traz o título, a data e o domínio da fonte; o
+// link da fonte fica na linha "Marcos", embaixo do gráfico. Sem eventos, o plugin nem é registrado.
+const MARCOS = (() => {
+  try {
+    const lista = JSON.parse(document.getElementById("marcos-dados")?.textContent.trim() || "[]");
+    return (Array.isArray(lista) ? lista : []).filter((m) => m && /^\d{4}-\d{2}(-\d{2})?$/.test(m.data) && typeof m.titulo === "string"
+      && /^https:\/\/\S+$/.test(m.fonte_url) && typeof m.dominio === "string" && Array.isArray(m.produtos));
+  } catch { return []; }
+})();
+// Gráficos de produto fixo: id do canvas -> chaves de produto (as de data/eventos.yml).
+const MARCOS_GRAFICOS = {
+  "grafico-enxofre": ["enxofre"], "grafico-rocha": ["rocha"],
+  "grafico-custo-map": ["enxofre", "rocha", "map"], "grafico-razao-map": ["enxofre", "rocha", "map"],
+};
+const dataMarco = (d) => (d.length === 10 ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : rotuloMes(d));
+const chaveMarcos = (lista) => lista.map((m) => `${m.data} ${m.titulo}`).join("|");
+// Eventos dos produtos dados nos meses do eixo x (rótulos "mmm/AAAA"), com o índice do mês.
+function marcosNoEixo(produtos, rotulos) {
+  if (!MARCOS.length || !produtos?.length || !rotulos?.length) return [];
+  const indice = new Map(rotulos.map((r, k) => [r, k]));
+  return MARCOS.filter((m) => m.produtos.some((k) => produtos.includes(k)) && indice.has(rotuloMes(m.data)))
+    .map((m) => ({ ...m, indice: indice.get(rotuloMes(m.data)) }));
+}
+// Os marcos do gráfico, refeitos só quando os rótulos ou os produtos mudam (não a cada quadro).
+function marcosDoGrafico(chart, opcoes) {
+  const produtos = [...(opcoes?.produtos ?? [])];
+  // perto: os marcos sob o ponteiro; chaveDica e chaveDesenho: os que a dica e o desenho já mostram
+  const m = (chart.$marcos ??= { perto: [], desenhados: [], chaveDica: "", chaveDesenho: "" });
+  if (m.rotulos !== chart.data.labels || m.produtos !== produtos.join(",")) {
+    Object.assign(m, { rotulos: chart.data.labels, produtos: produtos.join(","), lista: marcosNoEixo(produtos, chart.data.labels), perto: [] });
+  }
+  return m.lista;
+}
+function desenharMarcos(chart, opcoes, camada) {
+  const marcos = marcosDoGrafico(chart, opcoes);
+  const m = chart.$marcos;
+  if (camada === "linha") m.desenhados = [];
+  if (!marcos.length) return;
+  const { top, bottom, left, right } = chart.chartArea;
+  const escala = chart.scales.x;
+  const ctx = chart.ctx;
+  const perto = new Set(m.perto.map((x) => x.indice));
+  const fraca = cor("--marco"), forte = cor("--marco-forte"), fundo = cor("--superficie");
+  ctx.save();
+  for (const indice of new Set(marcos.map((x) => x.indice))) {
+    const x = Math.round(escala.getPixelForValue(indice)) + 0.5;
+    if (x < left - 1 || x > right + 1) continue;
+    const ativo = perto.has(indice);
+    if (camada === "linha") {
+      ctx.strokeStyle = ativo ? forte : fraca;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(ativo ? [] : [2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      m.desenhados.push({ indice, x, rotulo: chart.data.labels[indice], titulos: marcos.filter((e) => e.indice === indice).map((e) => e.titulo) });
+    } else {
+      // losango no topo, por cima das séries: o marco aparece mesmo onde uma barra cobre a linha
+      const r = ativo ? 4.5 : 3.5, y = top + 5;
+      ctx.setLineDash([]);
+      ctx.fillStyle = forte;
+      ctx.strokeStyle = fundo;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x + r, y);
+      ctx.lineTo(x, y + r);
+      ctx.lineTo(x - r, y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+const EVENTOS_MARCOS = new Set(["mousemove", "click", "touchstart", "touchmove"]);
+const pluginMarcos = {
+  id: "marcos",
+  defaults: { produtos: [] },
+  beforeDatasetsDraw(chart, _args, opcoes) { desenharMarcos(chart, opcoes, "linha"); },  // por baixo das séries
+  afterDatasetsDraw(chart, _args, opcoes) { desenharMarcos(chart, opcoes, "topo"); },
+  // Antes da dica do Chart.js: os marcos a meio mês do ponteiro (8 px no mínimo, 16 no toque) entram
+  // na dica do mês. Fora da área do gráfico fica o que estava, como a própria dica.
+  beforeEvent(chart, args, opcoes) {
+    const m = chart.$marcos, e = args.event;
+    if (!m) return;
+    if (e.type === "mouseout") { m.perto = []; return; }
+    if (!EVENTOS_MARCOS.has(e.type) || !args.inChartArea) return;
+    const marcos = marcosDoGrafico(chart, opcoes);
+    const escala = chart.scales.x;
+    const passo = (chart.data.labels?.length ?? 0) > 1 ? Math.abs(escala.getPixelForValue(1) - escala.getPixelForValue(0)) : Infinity;
+    const folga = Math.max(e.type.startsWith("touch") ? 16 : 8, passo / 2);
+    let melhor = null;
+    for (const x of marcos) {
+      const d = Math.abs(escala.getPixelForValue(x.indice) - e.x);
+      if (d <= folga && (!melhor || d < melhor.d)) melhor = { d, indice: x.indice };
+    }
+    m.perto = melhor ? marcos.filter((x) => x.indice === melhor.indice) : [];
+  },
+  // Depois dela: destaca a linha e refaz a dica se os marcos perto do ponteiro mudaram sem o mês
+  // da dica mudar; num mês sem nenhuma série, a dica só com os marcos.
+  afterEvent(chart, args) {
+    const m = chart.$marcos;
+    if (!m) return;
+    const chave = chaveMarcos(m.perto);
+    if (chave !== m.chaveDesenho) {
+      m.chaveDesenho = chave;
+      args.changed = true;
+    }
+    const tooltip = chart.tooltip;
+    if (tooltip?.getActiveElements().length) {
+      if (m.chaveDica !== chave) tooltip.options.external?.({ chart, tooltip });
+    } else if (m.perto.length) {
+      const r = chart.canvas.getBoundingClientRect();
+      posicionarDica(preencherDica({ titulo: rotuloMes(m.perto[0].data), linhas: [], marcos: m.perto }), r.left + args.event.x, r.top + args.event.y);
+      m.chaveDica = chave;
+    } else if (m.chaveDica) {
+      esconderDica();
+      m.chaveDica = "";
+    }
+  },
+};
+// Chamado por novoGrafico: o registro vale para os gráficos de produto fixo, e a linha "Marcos" vai
+// embaixo do gráfico (lista: false, sem linha: os gráficos 1 e 2 do benchmark usam a do 3).
+function ligarMarcos(id, config) {
+  if (!MARCOS.length) return;
+  const plugins = ((config.options ??= {}).plugins ??= {});
+  if (!plugins.marcos && MARCOS_GRAFICOS[id]) plugins.marcos = { produtos: MARCOS_GRAFICOS[id] };
+  if (!plugins.marcos || plugins.marcos.lista === false) return;
+  const canvas = document.getElementById(id);
+  listarMarcos(`marcos-${id}`, marcosNoEixo(plugins.marcos.produtos, config.data.labels), canvas.closest(".grafico") ?? canvas);
+}
+// Linha "Marcos": os eventos do gráfico, com o link da fonte; sem evento no período, ela sai.
+function listarMarcos(id, marcos, depoisDe) {
+  let linha = document.getElementById(id);
+  if (!marcos.length) {
+    linha?.remove();
+    return;
+  }
+  if (!linha) {
+    linha = el("p", { classe: "marcos", id });
+    depoisDe.after(linha);
+  }
+  linha.replaceChildren(
+    el("span", { classe: "marcos-rotulo" }, el("span", { classe: "chave-marco", "aria-hidden": "true" }), "Marcos:"),
+    ...marcos.flatMap((m, k) => [k ? " · " : " ", el("a", { href: m.fonte_url, rel: "noopener", title: `Fonte: ${m.dominio}` }, m.titulo), ` (${rotuloMes(m.data)})`]),
+  );
+}
+
 // Dica (tooltip) em HTML: valor em destaque, série em segundo plano; texto sempre via textContent.
-function preencherDica({ titulo, linhas, extras = [] }) {
+// Os marcos de mercado perto do ponteiro vêm por último, com a data e o domínio da fonte.
+function preencherDica({ titulo, linhas, extras = [], marcos = [] }) {
   const caixa = document.getElementById("dica");
   caixa.replaceChildren(
     el("div", { classe: "titulo" }, titulo),
@@ -893,6 +1050,8 @@ function preencherDica({ titulo, linhas, extras = [] }) {
       return el("div", { classe: "linha" }, chave, el("strong", {}, valor), el("span", { classe: "serie" }, serie));
     }),
     ...extras.map((t) => el("div", { classe: "extra" }, t)),
+    ...marcos.map((m) => el("div", { classe: "marco" }, el("span", { classe: "chave-marco" }),
+      el("span", {}, el("strong", {}, m.titulo), el("span", { classe: "fonte" }, `${dataMarco(m.data)} · fonte: ${m.dominio}`)))),
   );
   caixa.hidden = false;
   return caixa;
@@ -909,11 +1068,14 @@ function posicionarDica(caixa, cx, cy) {
 const esconderDica = () => { document.getElementById("dica").hidden = true; };
 function dicaExterna(montar) {
   return ({ chart, tooltip }) => {
+    const marcos = chart.$marcos;  // estado do plugin de marcos (só com eventos)
     if (tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+      if (marcos) marcos.chaveDica = "";
       esconderDica();
       return;
     }
-    const caixa = preencherDica(montar(tooltip.dataPoints));
+    if (marcos) marcos.chaveDica = chaveMarcos(marcos.perto);
+    const caixa = preencherDica({ ...montar(tooltip.dataPoints), marcos: marcos?.perto ?? [] });
     const r = chart.canvas.getBoundingClientRect();
     posicionarDica(caixa, r.left + tooltip.caretX, r.top + tooltip.caretY);
   };
@@ -1062,6 +1224,7 @@ function tocarEntrada(id) {
 
 function novoGrafico(id, config) {
   const canvas = document.getElementById(id);
+  ligarMarcos(id, config);
   const visto = vistos.has(id);
   config.options = { ...config.options, animation: visto && !semMovimentoPagina() ? ANIMACAO_ATUALIZACAO : false };
   configs[id] = config;
@@ -1811,6 +1974,7 @@ function desenharPrecos(indices) {
       plugins: {
         legend: { display: false },
         rotulosFinais: { ativo: true },
+        marcos: { produtos: estado.grupo === "NPK" ? ["npk"] : [] },  // o grupo NPK é o produto npk
         tooltip: {
           enabled: false,
           external: dicaExterna((pontos) => {
@@ -1934,6 +2098,7 @@ function desenharTroca(indices) {
       plugins: {
         legend: { display: false },
         rotulosFinais: { ativo: produtos.length > 1 },
+        marcos: { produtos: chaves },
         tooltip: {
           enabled: false,
           filter: (item) => !item.dataset.media,
@@ -2060,6 +2225,7 @@ function desenharNutrientes(indices) {
       plugins: {
         legend: { display: false },
         rotulosFinais: { ativo: produtos.length > 1 && !estreito() },
+        marcos: { produtos: produtos.map((x) => x.chave) },
         tooltip: {
           enabled: false,
           external: dicaExterna((pontos) => {
@@ -2258,7 +2424,7 @@ function desenharBenchmark(indices) {
       interaction: { mode: "index", intersect: false },
       scales: eixosBm((v) => fmt0.format(v)),
       // No celular a legenda acima identifica as linhas; o rótulo na ponta tomaria o gráfico.
-      plugins: { legend: { display: false }, rotulosFinais: { ativo: !estreito() }, quebras: { marcas }, tooltip: { enabled: false, external: dicaPrecos } },
+      plugins: { legend: { display: false }, rotulosFinais: { ativo: !estreito() }, quebras: { marcas }, marcos: { produtos: [estado.bm], lista: false }, tooltip: { enabled: false, external: dicaPrecos } },
     },
     plugins: [pluginCruz, pluginRotulosFinais, pluginQuebras],
   });
@@ -2279,7 +2445,7 @@ function desenharBenchmark(indices) {
       interaction: { mode: "index", intersect: false },
       scales: escalasSpread,
       plugins: {
-        legend: { display: false }, quebras: { marcas },
+        legend: { display: false }, quebras: { marcas }, marcos: { produtos: [estado.bm], lista: false },
         tooltip: {
           enabled: false,
           external: dicaExterna((pontos) => {
@@ -2314,6 +2480,7 @@ function desenharBenchmark(indices) {
       scales: eixosBm((v) => fmtCompacto.format(v)),
       plugins: {
         legend: { display: false },
+        marcos: { produtos: [estado.bm] },  // a linha "Marcos" dos três gráficos
         tooltip: {
           enabled: false,
           external: dicaExterna((pontos) => {
@@ -2646,6 +2813,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   Chart.defaults.font.size = 11;
   Chart.defaults.color = cor("--texto-2");
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) Chart.defaults.animation = false;
+  if (MARCOS.length) Chart.register(pluginMarcos);
   try {
     dados = await carregar();
   } catch {
