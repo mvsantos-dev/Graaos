@@ -124,29 +124,46 @@ def test_canvas_que_espera_nao_abre_rolagem_lateral_no_celular_estreito(navegado
     ctx.close()
 
 
-# no primeiro quadro com os dados (antes de ele pintar): os canvas na tela e se já têm gráfico
-QUADRO_COM_DADOS = """document.addEventListener('radar:dados', () => queueMicrotask(() => requestAnimationFrame(() => {
-  window.__naTela = [...document.querySelectorAll('.grafico canvas')].filter((c) => { const r = c.getBoundingClientRect();
-    return r.height && r.bottom > 0 && r.top < innerHeight; }).map((c) => [c.id, !!Chart.getChart(c)]); })));"""
+# medidas de cada canvas sem gráfico (fora das seções ocultas) e as da sua caixa .grafico, sem as
+# transformações da entrada dos cartões
+CAIXAS_DA_ESPERA = """() => [...document.querySelectorAll('.grafico canvas')].filter((c) => !Chart.getChart(c) && !c.closest('.oculto'))
+  .map((c) => [c.id, c.offsetWidth, c.offsetHeight, c.parentElement.clientWidth, c.parentElement.clientHeight])"""
+
+
+@pytest.mark.parametrize("largura", [1440, 390])
+def test_canvas_que_espera_tem_a_caixa_do_grafico_montado(navegador, site, largura):
+    # No tamanho padrão (300 × 150), o canvas que espera mudava a rolagem que o navegador restaura
+    # ao recarregar no meio da página (ela voltava centenas ou milhares de pixels abaixo).
+    ctx, pg, erros = _pagina(navegador, site, largura=largura, altura=900 if largura > 600 else 844)
+    caixas = pg.evaluate(CAIXAS_DA_ESPERA)
+    assert len(caixas) >= 8
+    for id_, w, h, cw, ch in caixas:
+        assert abs(w - cw) <= 1 and abs(h - ch) <= 1, f"{id_} espera com {w} × {h}, a caixa tem {cw} × {ch}"
+    antes = {id_: (w, h) for id_, w, h, _, _ in caixas}
+    pg.evaluate(ROLAR_ATE, ["grafico-frete", 0.3])
+    _montado(pg, "grafico-frete")
+    r = pg.evaluate("(() => { const c = document.getElementById('grafico-frete'); return [c.offsetWidth, c.offsetHeight]; })()")
+    assert abs(r[0] - antes["grafico-frete"][0]) <= 1 and abs(r[1] - antes["grafico-frete"][1]) <= 1
+    assert erros == []
+    ctx.close()
 
 
 @pytest.mark.parametrize("reduzido", [False, True])
-def test_recarregar_no_meio_da_pagina_volta_ao_mesmo_lugar_com_os_graficos_ja_montados(navegador, site, reduzido):
-    # Ao recarregar, o navegador restaura a rolagem; com o canvas que espera no tamanho padrão
-    # (300 × 150), e não no da caixa, a página voltava centenas ou milhares de pixels abaixo
+def test_grafico_ja_na_tela_ao_ganhar_a_configuracao_sai_no_mesmo_quadro(navegador, site, reduzido):
+    # Como quando todos eram montados na carga: o gráfico que está na tela quando ganha a
+    # configuração (rolagem restaurada, caixa que deixa de estar oculta) não espera o observador,
+    # que só avisa depois da pintura. Aqui, a caixa do preço fica oculta até o filtro mudar.
     ctx, pg, erros = _pagina(navegador, site, reduzido=reduzido)
-    pg.add_init_script(QUADRO_COM_DADOS)
-    pg.evaluate("document.getElementById('grafico-precos').scrollIntoView({block: 'center'})")
-    pg.wait_for_timeout(1500)
-    antes = pg.evaluate("scrollY")
-    pg.reload()
-    pg.wait_for_function("window.radarDados && window.__naTela", timeout=30_000)
-    pg.wait_for_timeout(1500)
-    assert abs(pg.evaluate("scrollY") - antes) <= 2, "recarregar volta ao mesmo ponto da página"
-    # os gráficos que já estão na tela saem no primeiro quadro com os dados, como antes
-    na_tela = pg.evaluate("window.__naTela")
-    assert "grafico-precos" in [id_ for id_, _ in na_tela]
-    assert [id_ for id_, montado in na_tela if not montado] == []
+    assert not pg.evaluate("!!Chart.getChart('grafico-precos')")
+    pg.evaluate("document.getElementById('grafico-precos').parentElement.classList.add('oculto')")
+    pg.evaluate("document.getElementById('grafico-precos').closest('.cartao').scrollIntoView({block: 'start'})")
+    pg.wait_for_timeout(400)
+    assert not pg.evaluate("!!Chart.getChart('grafico-precos')"), "oculto, o gráfico não é montado"
+    r = pg.evaluate("""async () => { document.getElementById('grafico-precos').parentElement.classList.remove('oculto');
+      document.querySelector('#filtro-grupo .chip[data-grupo=K]').click();
+      await new Promise(requestAnimationFrame); const g = Chart.getChart('grafico-precos');
+      return { montado: !!g, datasets: g ? g.data.datasets.length : 0 }; }""")
+    assert r["montado"] and r["datasets"] > 0, "o gráfico na tela sai no quadro seguinte, antes da pintura"
     assert erros == []
     ctx.close()
 
