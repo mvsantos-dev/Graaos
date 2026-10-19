@@ -311,9 +311,14 @@ def test_bloco_versionado_no_formato_combinado():
         assert p["ncms"] == ncms[chave] and p["corte_amostra_t"] == config.INSUMOS_CORTE_AMOSTRA_T[chave]
         assert all(isinstance(v, int) for v in p["t"] if v is not None)
         for t, cif, cif_musd, pequena in zip(p["t"], p["cif"], p["cif_musd"], p["amostra_pequena"]):
-            assert pequena == (t is not None and 0 < t < p["corte_amostra_t"])
+            # t e cif_musd vêm arredondados (t inteiro, US$ mi com 3 casas): na fronteira do corte e
+            # em mês de pouco volume, a conta com eles só vale dentro desse arredondamento
+            if t is None:
+                assert not pequena
+            elif t not in (0, p["corte_amostra_t"]):
+                assert pequena == (t < p["corte_amostra_t"])
             if t:
-                assert cif == pytest.approx(cif_musd * 1e6 / t, rel=2e-3)
+                assert cif == pytest.approx(cif_musd * 1e6 / t, abs=(500 + cif) / t)
     assert bloco["produtos"]["enxofre"]["descricao"].endswith("(NCM 2503)")
     assert bloco["produtos"]["rocha"]["descricao"].endswith("(NCM 2510.10 e 2510.20)")
     rocha = bloco["produtos"]["rocha"]
