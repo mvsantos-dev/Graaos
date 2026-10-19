@@ -937,11 +937,15 @@ function duasLinhas(nome, max = 14) {
 // Cada gráfico se desenha quando aparece na tela pela primeira vez: as linhas da esquerda para a
 // direita, ponto a ponto, e as barras crescendo em sequência. Depois disso, trocar o filtro, o
 // período ou o tema atualiza o gráfico no lugar: os valores deslizam até os novos, sem recriar.
-// Fora da tela, o gráfico é montado sem animação e espera a vez. Sem movimento, nada anima.
+// Longe da tela, o gráfico nem é montado: a última configuração espera em configs até o canvas
+// chegar a uma tela de distância (ou a página ir para a impressão), e aí ele é montado sem
+// animação e espera a vez. Assim a carga da página não monta todos os gráficos de uma vez. Sem
+// movimento, nada anima.
 const semMovimentoPagina = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ANIMACAO_ATUALIZACAO = { duration: 750, easing: "easeOutQuart" };
-const configs = {}; // id -> última configuração (a entrada recria o gráfico com ela)
+const configs = {}; // id -> última configuração (a montagem e a entrada usam a mais recente)
 const vistos = new Set(); // ids dos gráficos que já apareceram na tela
+const aMontar = new Set(); // ids com configuração e ainda sem gráfico (longe da tela)
 const observadorGraficos = "IntersectionObserver" in window ? new IntersectionObserver((entradas) => {
   for (const e of entradas) {
     if (!e.isIntersecting) continue;
@@ -949,6 +953,37 @@ const observadorGraficos = "IntersectionObserver" in window ? new IntersectionOb
     tocarEntrada(e.target.id);
   }
 }, { threshold: 0.3 }) : null;
+const observadorMontagem = "IntersectionObserver" in window ? new IntersectionObserver((entradas) => {
+  for (const e of entradas) if (e.isIntersecting) montarPendente(e.target.id);
+}, { rootMargin: "100% 0px" }) : null;
+
+// O canvas que espera fica no tamanho padrão (300 × 150), limitado à caixa para não abrir rolagem
+// lateral no celular estreito; o limite sai antes de o Chart.js medir a caixa.
+function criarGrafico(id, config) {
+  const canvas = document.getElementById(id);
+  if (aMontar.delete(id)) {
+    observadorMontagem.unobserve(canvas);
+    canvas.style.removeProperty("max-width");
+  }
+  graficos[id] = new Chart(canvas, config);
+  return graficos[id];
+}
+const montarPendente = (id) => { if (aMontar.has(id)) criarGrafico(id, configs[id]); };
+// O observador só avisa depois da pintura: num salto de rolagem (tecla End, âncora sem animação),
+// os gráficos que caíram perto da tela são montados já no evento de rolagem, antes de ela pintar.
+// Na impressão, todos os que faltam.
+let ultimaRolagem = 0;
+function montarNoSalto() {
+  const salto = Math.abs(scrollY - ultimaRolagem) > innerHeight / 2;
+  ultimaRolagem = scrollY;
+  if (!salto) return;
+  for (const id of [...aMontar]) {
+    const r = document.getElementById(id).getBoundingClientRect();
+    if (r.height > 0 && r.bottom > -innerHeight && r.top < 2 * innerHeight) montarPendente(id);
+  }
+}
+window.addEventListener("scroll", montarNoSalto, { passive: true });
+window.addEventListener("beforeprint", () => { for (const id of [...aMontar]) montarPendente(id); });
 
 function animacaoDeEntrada(config) {
   const n = Math.max(1, config.data.labels?.length ?? 1);
@@ -977,10 +1012,15 @@ function animacaoDeEntrada(config) {
 function tocarEntrada(id) {
   vistos.add(id);
   const config = configs[id];
-  if (!config || !graficos[id] || semMovimentoPagina()) return;
-  graficos[id].destroy();
+  if (!config) return;
+  if (semMovimentoPagina()) {
+    montarPendente(id);
+    return;
+  }
+  // Ainda sem gráfico (os dois observadores avisaram juntos), ele já nasce com a entrada.
+  graficos[id]?.destroy();
   config.options.animation = { ...animacaoDeEntrada(config), onComplete: ({ chart }) => { chart.options.animation = ANIMACAO_ATUALIZACAO; } };
-  graficos[id] = new Chart(document.getElementById(id), config);
+  criarGrafico(id, config);
   document.getElementById(id).dataset.entrada = "feita";
 }
 
@@ -999,14 +1039,20 @@ function novoGrafico(id, config) {
     return atual;
   }
   atual?.destroy();
-  graficos[id] = new Chart(canvas, config);
   if (!visto) {
     if (observadorGraficos && !semMovimentoPagina()) {
       canvas.dataset.entrada = "pendente";
       observadorGraficos.observe(canvas);
     } else vistos.add(id);
   }
-  return graficos[id];
+  // Sem gráfico ainda: só a configuração fica guardada, até o canvas chegar perto da tela.
+  if (!atual && observadorMontagem) {
+    aMontar.add(id);
+    canvas.style.maxWidth = "100%";
+    observadorMontagem.observe(canvas);
+    return null;
+  }
+  return criarGrafico(id, config);
 }
 
 // Números dos cartões: contam do valor que estava na tela até o novo (ao trocar filtro ou
@@ -2212,7 +2258,25 @@ function desenharBoletim(b) {
 }
 
 // --- Início ---------------------------------------------------------------------------------
+// O dashboard.json (600 KB) só é buscado depois da primeira pintura (a entrada "paint" do
+// navegador, que só chega quando ela já está na tela; sem essa API, depois do primeiro quadro): o
+// hero, que é HTML estático, aparece antes, sem disputar a rede e o processador com os dados. Aba
+// em segundo plano não pinta: busca direto. O prazo de 1 s cobre a aba que sai da tela no meio e a
+// pintura que demora demais (os dados não ficam presos a ela).
+function depoisDaPrimeiraPintura() {
+  if (document.visibilityState === "hidden" || performance.getEntriesByType("paint").length) return Promise.resolve();
+  return new Promise((pronto) => {
+    setTimeout(pronto, 1000);
+    if (!window.PerformanceObserver?.supportedEntryTypes?.includes("paint")) {
+      requestAnimationFrame(() => setTimeout(pronto, 0));
+      return;
+    }
+    const observador = new PerformanceObserver(() => { observador.disconnect(); pronto(); });
+    observador.observe({ type: "paint", buffered: true });
+  });
+}
 async function carregar() {
+  await depoisDaPrimeiraPintura();
   for (const url of ["dashboard.json", "../data/processed/dashboard.json"]) {
     try {
       const resposta = await fetch(url, { cache: "no-cache" });
