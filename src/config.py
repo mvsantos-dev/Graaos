@@ -20,6 +20,11 @@ RAW_ARQUIVO = "importacoes.parquet"
 # Exportação de soja em grão (relação de troca): data/raw_soja/ano=AAAA/exportacoes.parquet
 RAW_SOJA_DIR = DADOS_DIR / "raw_soja"
 RAW_SOJA_ARQUIVO = "exportacoes.parquet"
+# Insumos do fósforo (enxofre e rocha fosfática): NCMs num CSV próprio e importações com as
+# mesmas colunas das de fertilizantes, em data/raw_insumos/ano=AAAA/importacoes.parquet. Ficam
+# fora de data/raw: nunca entram nos totais de fertilizantes.
+NCM_INSUMOS_CSV = DADOS_DIR / "ncm_insumos.csv"
+RAW_INSUMOS_DIR = DADOS_DIR / "raw_insumos"
 # Boletim mensal com IA (fase 5): boletins/AAAA-MM.md e boletins/latest.json
 BOLETINS_DIR = RAIZ / "boletins"
 
@@ -107,3 +112,10 @@ HOSTS_FONTES = ("www.worldbank.org", "thedocs.worldbank.org", "api.bcb.gov.br")
 GRUPO_POR_SH4 = {"3102": "N", "3103": "P", "3104": "K", "3105": "NPK"}
 # ...com exceções por subposição (SH6): DAP e MAP são fosfatados na convenção de mercado.
 GRUPO_POR_SH6 = {"310530": "P", "310540": "P"}
+
+# --- Insumos do fósforo (capítulo 25 do SH) -------------------------------------------
+# Matérias-primas do MAP e do DAP, no grupo "INSUMOS", separado dos fertilizantes: enxofre
+# (2503, vira ácido sulfúrico) e rocha fosfática (2510.10 não moída e 2510.20 moída). Granel
+# líquido (2807 ácido sulfúrico, 2809 ácido fosfórico, 2814 amônia) fica fora do Graaos.
+GRUPO_INSUMOS = "INSUMOS"
+INSUMOS_POR_SH4 = {"2503": "enxofre", "2510": "rocha"}

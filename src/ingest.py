@@ -1,14 +1,17 @@
 """Ingestão das importações brasileiras de fertilizantes e das fontes de comparação.
 
-Baixa da API pública do Comex Stat (MDIC) duas séries mensais:
+Baixa da API pública do Comex Stat (MDIC) três séries mensais:
 
 - importações dos NCMs de data/ncm_fertilizantes.csv, detalhadas por país de
   origem, NCM, UF, via e URF, com US$ FOB, kg líquido, US$ CIF, frete e seguro
   (data/raw/ano=AAAA/importacoes.parquet);
 - exportações de soja em grão (NCM 12019000), com US$ FOB e kg líquido, usadas
-  na relação de troca (data/raw_soja/ano=AAAA/exportacoes.parquet).
+  na relação de troca (data/raw_soja/ano=AAAA/exportacoes.parquet);
+- importações de enxofre (2503) e rocha fosfática (2510), os insumos do fósforo, com os
+  NCMs de data/ncm_insumos.csv e as mesmas colunas das de fertilizantes, gravadas à parte
+  (data/raw_insumos/ano=AAAA/importacoes.parquet) para nunca entrar nos totais.
 
-As duas séries usam o mesmo cliente, o mesmo rate limit e a mesma gravação
+As três séries usam o mesmo cliente, o mesmo rate limit e a mesma gravação
 incremental: só consultam os meses que ainda não estão no disco.
 
 A mesma CLI baixa as fontes da fase 6 (src/benchmark.py): a Pink Sheet do Banco Mundial
@@ -17,6 +20,7 @@ A mesma CLI baixa as fontes da fase 6 (src/benchmark.py): a Pink Sheet do Banco 
 Uso:
     python -m src.ingest --inicio 2025-01 --fim 2025-03
     python -m src.ingest --inicio 2015-01 --serie soja
+    python -m src.ingest --inicio 2015-01 --serie insumos
     python -m src.ingest --atualizar-ncm
     python -m src.ingest --ultimo-gravado [--por-serie]
 
@@ -264,8 +268,18 @@ def grupo_do_ncm(ncm: str) -> str:
 
 def buscar_ncms_fertilizantes(cliente, por_pagina: int = 100) -> pd.DataFrame:
     """Lista os NCMs das posições 3102 a 3105 a partir da tabela auxiliar /tables/ncm."""
+    return buscar_ncms(cliente, list(config.GRUPO_POR_SH4), grupo_do_ncm, por_pagina)
+
+
+def buscar_ncms_insumos(cliente, por_pagina: int = 100) -> pd.DataFrame:
+    """Lista os NCMs do enxofre (2503) e da rocha fosfática (2510), todos no grupo INSUMOS."""
+    return buscar_ncms(cliente, list(config.INSUMOS_POR_SH4), lambda _ncm: config.GRUPO_INSUMOS, por_pagina)
+
+
+def buscar_ncms(cliente, posicoes: list[str], grupo_de, por_pagina: int = 100) -> pd.DataFrame:
+    """NCMs das posições (SH4) dadas, a partir da tabela auxiliar /tables/ncm, com o grupo de cada um."""
     itens: list[dict] = []
-    for sh4 in config.GRUPO_POR_SH4:
+    for sh4 in posicoes:
         pagina = 1
         while True:
             dados = cliente.get(
@@ -290,7 +304,7 @@ def buscar_ncms_fertilizantes(cliente, por_pagina: int = 100) -> pd.DataFrame:
                 break
             pagina += 1
     if not itens:
-        raise ErroAPI("A tabela /tables/ncm não retornou NCMs das posições 3102 a 3105.")
+        raise ErroAPI(f"A tabela /tables/ncm não retornou NCMs das posições {', '.join(posicoes)}.")
     df = pd.DataFrame(
         {
             "ncm": [str(i["coNcm"]) for i in itens],
@@ -299,7 +313,7 @@ def buscar_ncms_fertilizantes(cliente, por_pagina: int = 100) -> pd.DataFrame:
             "sh6": [str(i["subHeadingCode"]) for i in itens],
         }
     )
-    df["grupo"] = df["ncm"].map(grupo_do_ncm)
+    df["grupo"] = df["ncm"].map(grupo_de)
     return df.drop_duplicates("ncm").sort_values("ncm", ignore_index=True)[COLUNAS_NCM]
 
 
@@ -490,6 +504,11 @@ def ler_raw(
     return pd.concat(partes, ignore_index=True)
 
 
+def ler_insumos(raw_dir: Path = config.RAW_INSUMOS_DIR) -> pd.DataFrame:
+    """Importações de enxofre e rocha fosfática (mesmas colunas de ler_raw), fora dos fertilizantes."""
+    return ler_raw(raw_dir)
+
+
 def ler_soja(raw_dir: Path = config.RAW_SOJA_DIR) -> pd.DataFrame:
     """Exportação mensal de soja gravada, com a coluna `ano`."""
     return ler_raw(raw_dir, config.RAW_SOJA_ARQUIVO, COLUNAS_SOJA)
@@ -585,6 +604,35 @@ def ingerir(
     )
 
 
+def ingerir_insumos(
+    cliente,
+    inicio: str,
+    fim: str | None = None,
+    *,
+    raw_dir: Path = config.RAW_INSUMOS_DIR,
+    ncm_csv: Path = config.NCM_INSUMOS_CSV,
+    forcar: bool = False,
+    ultimo: str | None = None,
+) -> tuple[str, str]:
+    """Importações de enxofre e rocha fosfática: a mesma consulta e o mesmo cache incremental das
+    de fertilizantes, com os NCMs de data/ncm_insumos.csv, gravadas à parte em data/raw_insumos."""
+
+    def preparar():
+        ncms = carregar_ncms(ncm_csv)["ncm"].tolist()
+        tabelas = carregar_tabelas_auxiliares(cliente)
+
+        def consultar(de: str, ate: str) -> list[dict]:
+            corpo = montar_consulta(de, ate, ncms)
+            return _lista(cliente.post(config.ENDPOINT_CONSULTA, corpo, params={"language": config.IDIOMA}))
+
+        return consultar, lambda registros: normalizar(registros, tabelas)
+
+    return _ingerir_serie(
+        cliente, inicio, fim, rotulo="insumos", raw_dir=raw_dir, arquivo=config.RAW_ARQUIVO,
+        colunas=COLUNAS_RAW, ordem=ORDEM_RAW, preparar=preparar, forcar=forcar, ultimo=ultimo,
+    )
+
+
 def ingerir_soja(
     cliente,
     inicio: str,
@@ -673,6 +721,7 @@ def _pct(parte: float, total: float) -> str:
 SERIES = {
     "fertilizantes": (config.RAW_DIR, config.RAW_ARQUIVO),
     "soja": (config.RAW_SOJA_DIR, config.RAW_SOJA_ARQUIVO),
+    "insumos": (config.RAW_INSUMOS_DIR, config.RAW_ARQUIVO),
     "benchmark": (config.RAW_BENCHMARK_DIR, config.PINK_ARQUIVO),
     "cambio": (config.RAW_CAMBIO_DIR, config.PTAX_ARQUIVO),
 }
@@ -730,7 +779,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--atualizar-ncm",
         action="store_true",
-        help="regenera data/ncm_fertilizantes.csv a partir de /tables/ncm",
+        help="regenera data/ncm_fertilizantes.csv e data/ncm_insumos.csv a partir de /tables/ncm",
     )
     p.add_argument(
         "--pausa",
@@ -780,7 +829,11 @@ def main(argv: list[str] | None = None) -> int:
             ncms = buscar_ncms_fertilizantes(cliente)
             salvar_ncms(ncms)
             log.info("%d NCMs gravados em %s.", len(ncms), config.NCM_CSV)
-        if args.inicio and {"fertilizantes", "soja"} & set(series):
+        if args.atualizar_ncm or ("insumos" in series and not config.NCM_INSUMOS_CSV.exists()):
+            ncms = buscar_ncms_insumos(cliente)
+            salvar_ncms(ncms, config.NCM_INSUMOS_CSV)
+            log.info("%d NCMs gravados em %s.", len(ncms), config.NCM_INSUMOS_CSV)
+        if args.inicio and {"fertilizantes", "soja", "insumos"} & set(series):
             ultimo = ultimo_mes_publicado(cliente)
             log.info("Último mês publicado na API: %s.", ultimo)
             if "fertilizantes" in series:
@@ -795,6 +848,13 @@ def main(argv: list[str] | None = None) -> int:
                     cliente, args.inicio, args.fim, raw_dir=raw_dir, forcar=args.forcar, ultimo=ultimo
                 )
                 print(resumo_soja(ler_soja(raw_dir), inicio, fim))
+            if "insumos" in series:
+                raw_dir = SERIES["insumos"][0]
+                inicio, fim = ingerir_insumos(
+                    cliente, args.inicio, args.fim, raw_dir=raw_dir, ncm_csv=config.NCM_INSUMOS_CSV,
+                    forcar=args.forcar, ultimo=ultimo,
+                )
+                print(resumo(ler_insumos(raw_dir), inicio, fim))
         if args.inicio and {"benchmark", "cambio"} & set(series):
             fontes = benchmark.ClienteFontes()
             if "benchmark" in series:
