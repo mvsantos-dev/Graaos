@@ -102,7 +102,7 @@ def test_lista_de_espera_no_fim_da_pagina_com_o_item_receber_alertas_no_menu():
     # os dados vêm primeiro: a lista fica depois da Troca e antes do Método (e do rodapé), fora dos blocos numerados
     secoes = _Secoes()
     secoes.feed(html)
-    dados = ["boletim", "volumes", "origens", "fluxos", "portos", "precos", "troca"]
+    dados = ["boletim", "volumes", "origens", "fluxos", "portos", "precos", "insumos", "troca"]
     assert secoes.ids == [*dados, "lista-espera", "metodo"]
     # menu: as seções na ordem da página e, no fim, o convite, que rola até a lista (sem mexer no hash dos filtros)
     menu = re.search(r'<nav class="nav-pilula" id="nav-secoes".*?</nav>', html, re.S).group(0)

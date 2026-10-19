@@ -953,7 +953,7 @@ a { color: inherit; text-underline-offset: 2px; }
 .termos dt { flex: none; font: 600 11px/1.3 var(--mono); color: var(--titulo); letter-spacing: 0.02em; }
 .termos dd { margin: 0; }
 .termos a { color: var(--titulo); font: 400 11.5px/1.3 var(--mono); }
-#glossario { scroll-margin-top: 84px; }
+#glossario, #metodo-insumos { scroll-margin-top: 84px; }
 .glossario { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 32px; margin: 14px 0 0; }
 .glossario dt { font: 600 12px/1.3 var(--mono); color: var(--titulo); }
 .glossario dd { margin: 4px 0 0; color: var(--texto-2); font-size: 13.5px; line-height: 1.5; }
@@ -962,9 +962,10 @@ a { color: inherit; text-underline-offset: 2px; }
 .grafico canvas { display: block; }
 .alto-300 { height: 300px; }
 .alto-260 { height: 260px; }
+.alto-200 { height: 200px; } /* toneladas embaixo do preço (Insumos do fósforo) */
 /* No celular o gráfico é estreito: mais altura para a curva não ficar achatada. */
 @media (max-width: 600px) {
-  .alto-300 { height: 320px; } .alto-260 { height: 280px; }
+  .alto-300 { height: 320px; } .alto-260 { height: 280px; } .alto-200 { height: 220px; }
   .grafico { margin-top: 10px; }
   .legenda { gap: 4px 12px; margin-top: 8px; }
 }

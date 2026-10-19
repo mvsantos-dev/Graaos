@@ -49,6 +49,8 @@ A = {"titulo": "Marco de teste A", "rotulo": f"{MESES[MES_A - 1]}/{ANO_A}", "dat
 B = {"titulo": "Marco de teste B", "rotulo": "jun/2024", "data": "jun/2024", "url": "https://exemplo.org/b?x=1", "dominio": "exemplo.org"}
 GRAFICOS = ["grafico-toneladas", "grafico-origens", "grafico-hhi", "grafico-portos", "grafico-precos", "grafico-frete",
             "grafico-nutrientes", "grafico-bm", "grafico-spread", "grafico-brl", "grafico-troca"]
+# Insumos do fósforo: preço e toneladas de cada insumo e o custo de insumo do MAP (enxofre, rocha e MAP)
+INSUMOS = ["grafico-enxofre", "grafico-enxofre-t", "grafico-rocha", "grafico-rocha-t", "grafico-custo-map", "grafico-razao-map"]
 # monta todos os gráficos que esperam (como na impressão) e devolve, por gráfico, os meses com linha
 MARCADOS = """(ids) => { window.dispatchEvent(new Event('beforeprint'));
   return Object.fromEntries(ids.map((id) => [id, (Chart.getChart(id)?.$marcos?.desenhados ?? []).map((d) => [d.rotulo, d.titulos])])); }"""
@@ -166,9 +168,18 @@ def test_linhas_so_nos_graficos_dos_produtos_citados(navegador, site):
     # os gráficos que não são de produto ficam sem marcos
     for id_ in ("grafico-toneladas", "grafico-origens", "grafico-hhi", "grafico-portos", "grafico-precos", "grafico-frete"):
         assert marcados[id_] == [], id_
-    # a linha "Marcos" embaixo dos gráficos, com o link da fonte; a do benchmark vem depois do 3º gráfico
+    # insumos: o B cita o enxofre, que entra no custo de insumo do MAP; a rocha fica sem marcos
+    insumos = pg.evaluate(MARCADOS, INSUMOS)
+    for id_ in ("grafico-enxofre", "grafico-enxofre-t", "grafico-custo-map", "grafico-razao-map"):
+        assert insumos[id_] == [[B["rotulo"], [B["titulo"]]]], id_
+    assert insumos["grafico-rocha"] == insumos["grafico-rocha-t"] == []
+    # a linha "Marcos" embaixo dos gráficos, com o link da fonte; a do benchmark vem depois do 3º gráfico e a dos
+    # cartões de insumos, depois do último gráfico do cartão
     listas = {item["id"]: item for item in pg.evaluate(LISTAS)}
-    assert set(listas) == {"marcos-grafico-troca", "marcos-grafico-nutrientes", "marcos-grafico-brl"}
+    assert set(listas) == {"marcos-grafico-troca", "marcos-grafico-nutrientes", "marcos-grafico-brl", "marcos-grafico-enxofre-t", "marcos-grafico-razao-map"}
+    assert (listas["marcos-grafico-enxofre-t"]["dentro"], listas["marcos-grafico-enxofre-t"]["depoisDe"]) == ("secao-enxofre", "grafico-enxofre-t")
+    assert (listas["marcos-grafico-razao-map"]["dentro"], listas["marcos-grafico-razao-map"]["depoisDe"]) == ("secao-custo-map", "grafico-razao-map")
+    assert listas["marcos-grafico-razao-map"]["links"] == [[B["titulo"], B["url"], f"Fonte: {B['dominio']}"]]
     troca = listas["marcos-grafico-troca"]
     assert troca["links"] == [[B["titulo"], B["url"], f"Fonte: {B['dominio']}"], [A["titulo"], A["url"], f"Fonte: {A['dominio']}"]]
     assert troca["texto"] == f"Marcos: {B['titulo']} ({B['rotulo']}) · {A['titulo']} ({A['rotulo']})"
