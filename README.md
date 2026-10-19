@@ -168,6 +168,11 @@ Resumo PTAX venda, média mensal (BCB, SGS 3698) 2015-01 a 2026-09
 O [dashboard](https://radar.graaos.cloud/) é uma página estática (`dashboard/index.html`) que lê o
 `data/processed/dashboard.json`. Mostra:
 
+- logo depois do topo, os [sinais do mês](#sinais-de-preço-e-de-volume): até 6 cartões, os fortes
+  primeiro, cada um com a frase do sinal, uma minilinha da série e o link para o gráfico; os
+  mesmos sinais saem no feed Atom [`/sinais.xml`](https://radar.graaos.cloud/sinais.xml), nas
+  páginas `/boletim/AAAA-MM/` e num parágrafo do boletim mensal, com frases-modelo e números
+  inseridos pelo programa (a IA não escreve nenhum deles);
 - o [boletim do mês](#boletim-mensal-com-ia-fase-5), num card no topo, com link para o histórico;
 - KPIs do último mês e do acumulado do ano, comparados com o mesmo período do ano anterior;
 - toneladas mensais por grupo (N, P, K e NPK);
@@ -179,6 +184,10 @@ O [dashboard](https://radar.graaos.cloud/) é uma página estática (`dashboard/
 - preço implícito US$/t FOB x CIF e frete US$/t, com a legenda do que é FOB e CIF ao lado;
 - [custo por nutriente](#custo-por-nutriente-custo-por-molécula): quanto custa, no porto, a
   tonelada de N, de P₂O₅ e de K₂O em cada fertilizante, em US$ e em R$;
+- [insumos do fósforo](#insumos-do-fósforo), depois dos preços: enxofre (volume e preço), rocha
+  fosfática (Brasil x Pink Sheet) e custo de insumo por tonelada de MAP contra o CIF do MAP, com
+  a razão no tempo; a mesma seção tem uma página própria em
+  [`/insumos/`](https://radar.graaos.cloud/insumos/);
 - [relação de troca no porto](#relação-de-troca-no-porto) entre soja e KCl, ureia e MAP, com a
   média histórica como referência;
 - [Brasil x mercado internacional](#brasil-x-mercado-internacional-fase-6): preço FOB e CIF do
