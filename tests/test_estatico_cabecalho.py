@@ -437,6 +437,18 @@ def test_conferencia_pega_referencia_sem_versao_ou_com_hash_velho(tmp_path):
     assert issubclass(Conferente, Versionador)
 
 
+@pytest.mark.parametrize("codigo", ['fetch("assets/" + nome);', "fetch(`assets/${nome}.json`);", "const pasta = '../assets/fontes/';"], ids=["concatenado", "template", "pasta"])
+@pytest.mark.parametrize("onde", ["asset", "inline"])
+def test_conferencia_recusa_caminho_de_assets_montado_no_codigo(tmp_path, codigo, onde):
+    # sem o caminho inteiro numa string, o build não põe ?v= e o arquivo ficaria um ano no cache
+    if onde == "asset":
+        ctx = _site_falso(tmp_path, '<script src="assets/a.js"></script>', {"assets/a.js": codigo})
+    else:
+        ctx = _site_falso(tmp_path, f"<script>{codigo}</script>", {})
+    with pytest.raises(ErroEstatico, match="montado no código"):
+        versionar(ctx)
+
+
 # --- sitemap e páginas ---------------------------------------------------------------------
 def test_sitemap_recusa_pagina_que_nao_existe_ou_repetida(site):
     ctx = Contexto.carregar(site, "2026-10-01")

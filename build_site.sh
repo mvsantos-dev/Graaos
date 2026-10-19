@@ -47,6 +47,14 @@ if [[ "$atualizado" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
 else
   echo "build_site.sh: aviso: sem histórico do git, o rodapé fica sem a data de atualização" >&2
 fi
+# Num clone raso, o commit achado pode ser só a borda do histórico baixado: a data é a dele, não a da
+# última mudança dos dados (e vai para o rodapé, o sitemap e o JSON-LD). Só avisa: o build não usa a rede.
+commit_dados="$(git -C "$raiz" log -1 --format=%H -- data/processed/dashboard.json 2>/dev/null || true)"
+borda="$(git -C "$raiz" rev-parse --git-path shallow 2>/dev/null || true)"
+case "$borda" in /*) ;; ?*) borda="$raiz/$borda" ;; esac
+if [[ -n "$commit_dados" && -f "$borda" ]] && grep -qx "$commit_dados" "$borda"; then
+  echo "build_site.sh: aviso: clone raso do git: $atualizado é a data do commit mais antigo baixado, não necessariamente a da última atualização dos dados (rode git fetch --unshallow antes do build)" >&2
+fi
 
 # --- Verificações finais -------------------------------------------------------------------
 for arquivo in index.html dashboard.json boletim.json assets/mapa-pontos.json assets/fluxos.js assets/hero.js assets/mapa-hero.js assets/lista-espera.js assets/radar.css; do

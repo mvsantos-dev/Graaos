@@ -13,7 +13,8 @@ Onde se procura:
   é relativo à página (o index.html, na raiz).
 - CSS (assets/*.css): url(), resolvida a partir da pasta do CSS (fontes/x vira assets/fontes/x).
 
-Referência a arquivo que não existe, ou que fica sem a versão certa, é erro de build.
+Referência a arquivo que não existe, ou que fica sem a versão certa, é erro de build. Caminho de
+assets/ montado no JavaScript ("assets/" + nome) também: o build não teria como versioná-lo.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ _QUERY_FORA = r"(\?[^\s\"'<>`#)]*)?"
 _REF_HTML = re.compile(r"(?<![\w/.%-])(" + _PREFIXO + _CAMINHO + r")" + _QUERY_FORA)
 # no JavaScript: só dentro de string
 _REF_JS = re.compile(r"(?<=[\"'`])(" + _PREFIXO + _CAMINHO + r")(\?[^\"'`\s#]*)?(?=[#\"'`])")
+_INICIO_JS = re.compile(r"(?<=[\"'`])" + _PREFIXO + r"assets/")  # string que começa com um caminho de assets/
 _URL_CSS = re.compile(r"url\(\s*([\"']?)([^\"')\s]+)\1\s*\)")
 _BLOCOS_HTML = re.compile(r"(<!--.*?-->)|(<script\b[^>]*>)(.*?)(</script\s*>)|(<style\b[^>]*>)(.*?)(</style\s*>)", re.S | re.I)
 _JSON_LD = re.compile(r"type=[\"']?application/ld\+json", re.I)
@@ -161,6 +163,16 @@ class Conferente(Versionador):
             if partes is not None:
                 self._trocar(partes[0], partes[1], base, onde, so_assets=True)
         return texto
+
+    def js(self, texto, base, onde):
+        # string que começa com assets/ mas não é um caminho inteiro ("assets/" + nome, `assets/${x}`):
+        # o build não sabe a versão, e o arquivo ficaria um ano no cache sem ?v=
+        inteiras = {m.start() for m in _REF_JS.finditer(texto)}
+        for m in _INICIO_JS.finditer(texto):
+            if m.start() not in inteiras:
+                trecho = texto[m.start() : m.start() + 40].split("\n", 1)[0]
+                raise ErroEstatico(f"{onde}: caminho de assets/ montado no código ({trecho!r}): escreva o caminho inteiro numa string, para o build pôr ?v=")
+        return super().js(texto, base, onde)
 
     def versao(self, alvo):
         return hash_curto(alvo.read_bytes())

@@ -1,6 +1,7 @@
 """Testes do build_site.sh (o site do deploy na Cloudflare e no GitHub Pages). Sem rede."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -99,6 +100,35 @@ def test_build_falha_sem_icone_ou_com_referencia_quebrada(tmp_path, estragar, me
     r = _rodar(raiz, raiz / "site")
     assert r.returncode == 1
     assert mensagem in r.stderr
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="precisa de git")
+def test_data_dos_dados_vem_do_git_e_clone_raso_avisa(tmp_path):
+    # a data de atualização (rodapé, sitemap e JSON-LD) é a do último commit que mudou o dashboard.json;
+    # num clone raso, o git só conhece o último commit, e o build avisa que a data pode ser a dele
+    raiz = _repo_falso(tmp_path, COMPLETO)
+    ambiente = {"PATH": os.environ.get("PATH", ""), "HOME": str(tmp_path), "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "Teste",
+                "GIT_AUTHOR_EMAIL": "teste@example.invalid", "GIT_COMMITTER_NAME": "Teste", "GIT_COMMITTER_EMAIL": "teste@example.invalid"}
+
+    def git(*args, data=None):
+        datas = {"GIT_AUTHOR_DATE": data, "GIT_COMMITTER_DATE": data} if data else {}
+        subprocess.run(["git", "-C", str(raiz), *args], check=True, capture_output=True, env={**ambiente, **datas}, timeout=60)
+
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-q", "-m", "dados", data="2026-01-02T12:00:00+00:00")
+    (raiz / "outro.txt").write_text("x")
+    git("add", "outro.txt")
+    git("commit", "-q", "-m", "outra coisa", data="2026-02-03T12:00:00+00:00")
+    completo = subprocess.run(["bash", str(raiz / "build_site.sh"), str(tmp_path / "site")], capture_output=True, text=True, timeout=60, env=ambiente)
+    assert completo.returncode == 0, completo.stderr
+    assert "clone raso" not in completo.stderr
+    assert "<lastmod>2026-01-02</lastmod>" in (tmp_path / "site" / "sitemap.xml").read_text()
+    raso = tmp_path / "raso"
+    subprocess.run(["git", "clone", "-q", "--depth", "1", raiz.as_uri(), str(raso)], check=True, capture_output=True, env=ambiente, timeout=60)
+    r = subprocess.run(["bash", str(raso / "build_site.sh"), str(tmp_path / "site-raso")], capture_output=True, text=True, timeout=60, env=ambiente)
+    assert r.returncode == 0, r.stderr
+    assert "clone raso" in r.stderr and "2026-02-03" in r.stderr
 
 
 @pytest.mark.parametrize(
