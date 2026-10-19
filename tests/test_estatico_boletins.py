@@ -28,7 +28,8 @@ ATUALIZADO = "2026-10-15"
 
 def _montar(pasta: Path, boletim_site: dict | None = None, textos: dict[str, dict | str] | None = None) -> Contexto:
     site, raiz = pasta / "site", pasta / "raiz"
-    shutil.copytree(RAIZ / "dashboard", site, ignore=shutil.ignore_patterns("*.png", "*.gif"))
+    # sem as capturas grandes do README; os ícones (favicon-*.png etc.) ficam, porque as páginas os ligam
+    shutil.copytree(RAIZ / "dashboard", site, ignore=shutil.ignore_patterns("*.gif", "print*.png", "preview.png"))
     shutil.copy(config.PROCESSED_DIR / "dashboard.json", site / "dashboard.json")
     (site / "boletim.json").write_text(json.dumps(boletim_site or {}, ensure_ascii=False), encoding="utf-8")
     (raiz / "boletins").mkdir(parents=True)
