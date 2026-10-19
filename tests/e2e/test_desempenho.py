@@ -110,16 +110,43 @@ def test_dados_depois_da_primeira_pintura_e_nada_montado_longe_da_tela(navegador
 
 
 def test_canvas_que_espera_nao_abre_rolagem_lateral_no_celular_estreito(navegador, site):
-    # o canvas sem gráfico fica no tamanho padrão do navegador (300 px), mais largo que a caixa
+    # o canvas sem gráfico ocupa a caixa (no tamanho padrão do navegador, 300 px, passaria dela)
     ctx, pg, erros = _pagina(navegador, site, largura=320, altura=740)
     larguras = pg.evaluate("[...document.querySelectorAll('.grafico canvas')].filter((c) => !Chart.getChart(c) && !c.closest('.oculto')).map((c) => [c.getBoundingClientRect().width, c.parentElement.clientWidth])")
     assert larguras and all(w <= caixa + 0.5 for w, caixa in larguras)
     assert pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") == 0
-    # montado, o gráfico ocupa a caixa inteira (o limite sai antes de o Chart.js medir)
+    # montado, o gráfico ocupa a caixa inteira (as medidas da espera saem antes de o Chart.js medir)
     pg.evaluate(ROLAR_ATE, ["grafico-toneladas", 0.3])
     _montado(pg, "grafico-toneladas")
-    r = pg.evaluate("(() => { const c = document.getElementById('grafico-toneladas'); return [c.style.maxWidth, Math.round(c.getBoundingClientRect().width), c.parentElement.clientWidth]; })()")
-    assert r[0] == "" and abs(r[1] - r[2]) <= 1
+    r = pg.evaluate("(() => { const c = document.getElementById('grafico-toneladas'); return [c.style.width, Math.round(c.getBoundingClientRect().width), c.parentElement.clientWidth]; })()")
+    assert r[0].endswith("px") and abs(r[1] - r[2]) <= 1
+    assert erros == []
+    ctx.close()
+
+
+# no primeiro quadro com os dados (antes de ele pintar): os canvas na tela e se já têm gráfico
+QUADRO_COM_DADOS = """document.addEventListener('radar:dados', () => queueMicrotask(() => requestAnimationFrame(() => {
+  window.__naTela = [...document.querySelectorAll('.grafico canvas')].filter((c) => { const r = c.getBoundingClientRect();
+    return r.height && r.bottom > 0 && r.top < innerHeight; }).map((c) => [c.id, !!Chart.getChart(c)]); })));"""
+
+
+@pytest.mark.parametrize("reduzido", [False, True])
+def test_recarregar_no_meio_da_pagina_volta_ao_mesmo_lugar_com_os_graficos_ja_montados(navegador, site, reduzido):
+    # Ao recarregar, o navegador restaura a rolagem; com o canvas que espera no tamanho padrão
+    # (300 × 150), e não no da caixa, a página voltava centenas ou milhares de pixels abaixo
+    ctx, pg, erros = _pagina(navegador, site, reduzido=reduzido)
+    pg.add_init_script(QUADRO_COM_DADOS)
+    pg.evaluate("document.getElementById('grafico-precos').scrollIntoView({block: 'center'})")
+    pg.wait_for_timeout(1500)
+    antes = pg.evaluate("scrollY")
+    pg.reload()
+    pg.wait_for_function("window.radarDados && window.__naTela", timeout=30_000)
+    pg.wait_for_timeout(1500)
+    assert abs(pg.evaluate("scrollY") - antes) <= 2, "recarregar volta ao mesmo ponto da página"
+    # os gráficos que já estão na tela saem no primeiro quadro com os dados, como antes
+    na_tela = pg.evaluate("window.__naTela")
+    assert "grafico-precos" in [id_ for id_, _ in na_tela]
+    assert [id_ for id_, montado in na_tela if not montado] == []
     assert erros == []
     ctx.close()
 

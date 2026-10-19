@@ -957,30 +957,43 @@ const observadorMontagem = "IntersectionObserver" in window ? new IntersectionOb
   for (const e of entradas) if (e.isIntersecting) montarPendente(e.target.id);
 }, { rootMargin: "100% 0px" }) : null;
 
-// O canvas que espera fica no tamanho padrão (300 × 150), limitado à caixa para não abrir rolagem
-// lateral no celular estreito; o limite sai antes de o Chart.js medir a caixa.
+// O canvas que espera ocupa a caixa inteira, como o gráfico montado (no tamanho padrão, 300 × 150,
+// abriria rolagem lateral no celular estreito e mudaria a âncora da rolagem que o navegador
+// restaura ao recarregar); essas medidas saem antes de o Chart.js medir a caixa.
 function criarGrafico(id, config) {
   const canvas = document.getElementById(id);
   if (aMontar.delete(id)) {
     observadorMontagem.unobserve(canvas);
-    canvas.style.removeProperty("max-width");
+    canvas.style.removeProperty("width");
+    canvas.style.removeProperty("height");
   }
   graficos[id] = new Chart(canvas, config);
   return graficos[id];
 }
 const montarPendente = (id) => { if (aMontar.has(id)) criarGrafico(id, configs[id]); };
-// O observador só avisa depois da pintura: num salto de rolagem (tecla End, âncora sem animação),
-// os gráficos que caíram perto da tela são montados já no evento de rolagem, antes de ela pintar.
-// Na impressão, todos os que faltam.
+// Monta os que estão na tela ou a até `margem` telas dela (oculto tem altura 0 e fica de fora).
+function montarPerto(margem) {
+  for (const id of [...aMontar]) {
+    const r = document.getElementById(id).getBoundingClientRect();
+    if (r.height > 0 && r.bottom > -margem * innerHeight && r.top < (1 + margem) * innerHeight) montarPendente(id);
+  }
+}
+// O observador só avisa depois da pintura. Os gráficos que já estão na tela quando ganham a
+// configuração (a rolagem restaurada ao recarregar, a caixa que deixa de estar oculta) são montados
+// no quadro seguinte, antes de ele pintar, como quando todos eram montados na carga. Num salto de
+// rolagem (tecla End, âncora sem animação), os que caíram perto da tela são montados já no evento
+// de rolagem. Na impressão, todos os que faltam.
+let montagemAgendada = false;
+function agendarMontagemNaTela() {
+  if (montagemAgendada) return;
+  montagemAgendada = true;
+  requestAnimationFrame(() => { montagemAgendada = false; montarPerto(0); });
+}
 let ultimaRolagem = 0;
 function montarNoSalto() {
   const salto = Math.abs(scrollY - ultimaRolagem) > innerHeight / 2;
   ultimaRolagem = scrollY;
-  if (!salto) return;
-  for (const id of [...aMontar]) {
-    const r = document.getElementById(id).getBoundingClientRect();
-    if (r.height > 0 && r.bottom > -innerHeight && r.top < 2 * innerHeight) montarPendente(id);
-  }
+  if (salto) montarPerto(1);
 }
 window.addEventListener("scroll", montarNoSalto, { passive: true });
 window.addEventListener("beforeprint", () => { for (const id of [...aMontar]) montarPendente(id); });
@@ -1048,8 +1061,10 @@ function novoGrafico(id, config) {
   // Sem gráfico ainda: só a configuração fica guardada, até o canvas chegar perto da tela.
   if (!atual && observadorMontagem) {
     aMontar.add(id);
-    canvas.style.maxWidth = "100%";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     observadorMontagem.observe(canvas);
+    agendarMontagemNaTela();
     return null;
   }
   return criarGrafico(id, config);
