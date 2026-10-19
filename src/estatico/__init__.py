@@ -11,7 +11,10 @@ Etapas (cada uma num módulo, chamadas em ordem por __main__.py):
   troca), a frase de resumo de cada gráfico e o aria-label dos canvas, iguais ao que o JavaScript
   desenha na visão padrão (todos os grupos, período inteiro). O JavaScript continua redesenhando
   por cima.
+- insumos: a seção "Insumos do fósforo" (frases, tabelas e aria-label) e a página insumos/.
 - tabelas: as tabelas de "Ver tabela" já no HTML, iguais às da visão padrão.
+- marcos: os marcos de mercado de data/eventos.yml, para o script desenhar nos gráficos.
+- sinais: os "Sinais do mês" de data/sinais.json (cards, feed sinais.xml).
 - boletins: uma página por mês em boletim/AAAA-MM/ e o arquivo em boletim/.
 - cabecalho: JSON-LD, robots.txt, sitemap.xml, 404.html, llms.txt, _headers e a versão (?v=) dos
   arquivos de assets/ nas páginas.

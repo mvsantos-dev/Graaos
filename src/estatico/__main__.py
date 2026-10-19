@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import boletins, cabecalho, resumo, resumo_precos, tabelas
+from . import boletins, cabecalho, insumos, marcos, resumo, resumo_precos, sinais, tabelas
 from .contexto import Contexto, ErroEstatico, Pagina
 
 
@@ -20,7 +20,10 @@ def main(argv: list[str] | None = None) -> int:
         ctx.paginas.append(Pagina("", ctx.atualizado))
         resumo.gerar(ctx)  # index.html: card Resumo, destaques e frases de volumes, origens, HHI, portos e rotas
         resumo_precos.gerar(ctx)  # index.html: frases de preços, frete, nutrientes, troca e benchmark
+        insumos.gerar(ctx)  # index.html: seção Insumos do fósforo; página insumos/
         tabelas.gerar(ctx)  # index.html: tabelas de "Ver tabela"
+        marcos.gerar(ctx)  # index.html: marcos de mercado (data/eventos.yml) para os gráficos
+        sinais.gerar(ctx)  # index.html: Sinais do mês; feed sinais.xml (data/sinais.json)
         boletins.gerar(ctx)  # boletim/AAAA-MM/ e boletim/ (acrescenta em ctx.paginas)
         cabecalho.gerar(ctx)  # por último: JSON-LD, sitemap de todas as páginas, versão dos assets
         ctx.gravar()
