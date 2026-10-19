@@ -4,7 +4,18 @@ Um boletim por mês de dados, gerado pelo workflow [`atualizacao.yml`](../.githu
 com [`src/boletim.py`](../src/boletim.py):
 
 - `AAAA-MM.md`: o boletim do mês, com a tabela dos números citados;
+- `AAAA-MM.json`: o mesmo conteúdo do `latest.json`, guardado para cada mês (só a partir dos
+  boletins gerados depois desta mudança), lido pela página do mês no site;
 - `latest.json`: o boletim mais recente, lido pelo card do [dashboard](https://radar.graaos.cloud/).
+
+O site tem uma página por mês de dados em [`/boletim/AAAA-MM/`](https://radar.graaos.cloud/boletim/)
+e o arquivo de todos os meses em `/boletim/`, gerados no build (`build_site.sh`, por
+`src/estatico/boletins.py`) só a partir do `dashboard.json`: os números do mês e do acumulado,
+a tabela por grupo, a relação de troca no porto e, no último mês dos dados e nos dezembros,
+origens, portos e rotas do ano. As frases dessas páginas são modelos preenchidos pelo programa
+com o mesmo pacote de fatos do boletim; o texto da IA entra na página do mês quando existe o
+`AAAA-MM.json` (ou quando o `latest.json` é daquele mês). Os meses anteriores à IA ficam só com
+os números e as frases-modelo. Texto do modo `--mock` nunca entra no site.
 
 O texto é escrito por IA, mas os números não: a IA só cita marcadores de um pacote de fatos
 calculado pelo programa, que os troca pelos valores e reprova qualquer número escrito fora deles.

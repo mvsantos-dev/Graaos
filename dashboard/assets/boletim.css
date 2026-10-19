@@ -1,0 +1,90 @@
+/* Graaos · Fertilizantes: páginas estáticas dos boletins (boletim/AAAA-MM/ e boletim/).
+ *
+ * Geradas no build por src/estatico/boletins.py, sem JavaScript. Usam o radar.css (tokens,
+ * fontes, barra do topo, cartões, KPIs, tabelas e rodapé) e só acrescentam aqui o que as páginas
+ * têm a mais: trilha, títulos h2 dos cartões, tabelas lado a lado, navegação entre os meses e a
+ * lista do arquivo. Claro e escuro pelos mesmos tokens do radar.css.
+ */
+
+/* Barra do topo fixa (radar.css): o conteúdo começa abaixo dela. Sem o hero, ela já vem com o fundo
+   fosco, e o item da seção atual ganha o fundo que o indicador animado dá na home. */
+.pagina-boletim .pagina { padding-top: 76px; }
+.pagina-boletim .nav-pilula a[aria-current] {
+  color: var(--nav-ativo-texto);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--nav-ativo-fundo) 82%, #ffffff), var(--nav-ativo-fundo));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 4px 16px rgba(43, 52, 209, 0.35);
+}
+.pagina-boletim .bloco { padding-top: 28px; }
+.pagina-boletim .bloco-cabecalho { margin-bottom: 24px; }
+.pagina-boletim .bloco-lead { color: var(--texto); font-size: 15px; }
+.pagina-boletim .bloco-lead a, .pagina-boletim .nota-boletim a { color: var(--titulo); }
+
+/* Trilha: Graaos · Fertilizantes / Boletins / mês */
+.trilha ol { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 0; list-style: none; font: 400 12px/1.5 var(--mono); color: var(--texto-2); }
+.trilha li { min-width: 0; }
+.trilha li + li::before { content: "/"; margin-right: 8px; color: var(--texto-3); }
+.trilha a { color: var(--texto-2); text-decoration: none; }
+.trilha a:hover { color: var(--titulo); text-decoration: underline; }
+.trilha [aria-current] { color: var(--texto); }
+
+/* Títulos dos cartões em h2 (a página tem um h1): o mesmo desenho do h3.titulo-cartao da home. */
+.pagina-boletim .cartao h2.titulo-cartao { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
+.pagina-boletim .boletim h2.titulo-cartao { font-size: 20px; line-height: 1.3; font-weight: 400; }
+.pagina-boletim .boletim h2.titulo-cartao a { color: var(--titulo); text-decoration: none; }
+.pagina-boletim .boletim h2.titulo-cartao a:hover { text-decoration: underline; }
+.pagina-boletim .boletim .texto p:first-child { margin-top: 14px; }
+.pagina-boletim .boletim .links a { color: var(--titulo); }
+
+/* Tabelas do mês: a linha do total em destaque; origens e portos lado a lado na tela larga. */
+.pagina-boletim tr.total td { font-weight: 600; border-bottom: 0; }
+.pagina-boletim .rolagem { max-height: none; }
+.tabelas-boletim { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; }
+@media (min-width: 900px) { .tabelas-boletim { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pagina-boletim h3.subtitulo { margin-bottom: 6px; }
+.pagina-boletim h3.subtitulo + .nota { margin: 0 0 6px; }
+.pagina-boletim .nota-troca { margin-top: 10px; }
+.nota-boletim { margin: 0 0 16px; padding: 10px 14px; border: 1px dashed var(--borda); border-radius: 6px; background: var(--lavagem); color: var(--texto-2); font-size: 13px; }
+
+/* Navegação entre os meses: anterior, arquivo e próximo, como cartões. */
+.meses-boletim { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; margin: 8px 0 28px; }
+.meses-boletim a {
+  display: grid; align-content: start; gap: 3px; min-height: 44px; padding: 12px 14px; border: 1px solid var(--borda); border-radius: 6px;
+  background: var(--superficie); color: var(--titulo); font-size: 15px; font-weight: 600; text-decoration: none; transition: background-color 0.2s;
+}
+.meses-boletim a:hover { background: var(--lavagem); }
+.meses-boletim .rotulo { font: 400 11px/1.3 var(--mono); color: var(--texto-2); letter-spacing: 0.01em; }
+.meses-boletim .proximo { text-align: right; }
+@media (max-width: 600px) {
+  .meses-boletim { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .meses-boletim .arquivo { grid-column: 1 / -1; grid-row: 2; text-align: center; }
+  .meses-boletim .vazio { display: none; }
+  .meses-boletim .vazio + .arquivo { grid-row: auto; }
+}
+
+/* Arquivo: um cartão por ano (details: os dois anos mais recentes abertos), os meses do mais novo
+   ao mais antigo. */
+.cabecalho-ano {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: baseline;
+  min-height: 44px; margin: -12px 0; padding: 12px 28px 12px 0; position: relative; cursor: pointer; list-style: none;
+}
+.cabecalho-ano::-webkit-details-marker { display: none; }
+.cabecalho-ano::after {
+  content: "+"; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  font: 400 16px/1 var(--mono); color: var(--texto-2);
+}
+details[open] > .cabecalho-ano::after { content: "−"; }
+.cabecalho-ano:hover h2 { color: var(--titulo); }
+.cabecalho-ano .nota { color: var(--texto-2); font-size: 13px; }
+details[open] > .cabecalho-ano { margin-bottom: -2px; }
+.lista-meses { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 0 24px; margin: 10px 0 0; padding: 0; list-style: none; }
+.lista-meses li { display: flex; flex-wrap: wrap; align-items: baseline; align-content: start; gap: 2px 8px; padding: 9px 0; border-top: 1px solid var(--grade); min-width: 0; }
+.lista-meses a { color: var(--titulo); font-weight: 600; text-decoration: none; min-height: 24px; display: inline-flex; align-items: center; }
+.lista-meses a:hover { text-decoration: underline; }
+.lista-meses .resumo { flex: 1 1 100%; color: var(--texto-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lista-meses .selo { padding: 0 6px; border: 1px solid var(--borda); border-radius: 999px; color: var(--texto-2); font: 400 11px/1.6 var(--mono); }
+
+@media (prefers-reduced-motion: reduce) { .meses-boletim a { transition: none; } }
+@media print {
+  .pagina-boletim .barra-topo, .pagina-boletim .pular { display: none; }
+  .pagina-boletim .pagina { padding-top: 0; }
+}
