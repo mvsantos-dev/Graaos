@@ -214,6 +214,13 @@ def test_benchmark_usa_o_preco_do_brasil_da_base(falsos):
     assert "ficou praticamente igual ao benchmark" in dap["bm"] and ": 0,0% (US$ 0/t)" in dap["spread"]
 
 
+def test_spread_acima_de_zero_pelo_numero_arredondado(falsos):
+    """Mês que aparece como 0,0% não conta como acima de zero (o sinal sai do número arredondado)."""
+    prod = falsos["benchmark"]["produtos"]["dap"]
+    prod["spread_pct"][0], prod["spread_pct"][1], prod["spread_pct"][2] = 0.04, 0.05, -0.04
+    assert "acima de zero em 1 de 27 meses comparáveis" in R.frases_benchmark(falsos, "dap", list(range(27)))["spread"]
+
+
 def test_benchmark_com_ultimo_mes_fora_da_comparacao(falsos):
     prod = falsos["benchmark"]["produtos"]["dap"]
     prod["t"][-1], prod["amostra_pequena"][-1] = 57, True

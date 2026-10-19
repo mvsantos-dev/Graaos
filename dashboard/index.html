@@ -1574,7 +1574,8 @@ function frasesBenchmark(chave, indices) {
     const referencia = `${prod.serie}${prod.proxy ? `, a referência do ${prod.nome}` : ""}`;
     frases.bm = `${quando(i, "da comparação", "benchmark do Banco Mundial")}, o Brasil importou ${nome} a ${porTonelada(valor("fob", i))} FOB e ${porTonelada(valor("cif", i))} CIF; o benchmark do Banco Mundial (${referencia}), na base ${base.base}, foi de ${porTonelada(valor("bm", i))}. Na base comparável (${base.comparacao}), o preço do Brasil, de ${brasil}, ficou ${relacao}. ${NAO_E_AGIO} ${fontes}`;
     const meses = indices.filter(comparavel);
-    const acima = meses.filter((x) => valor("spread_pct", x) > 0).length;
+    // acima de zero pelo número arredondado, como o sinal: +0,0% não conta
+    const acima = meses.filter((x) => sinalDe(valor("spread_pct", x), fmt1, "+") === "+").length;
     const emUsd = nulo(usd) ? "" : ` (${sinalDe(usd, fmt0, "+")}US$ ${fmt0.format(Math.abs(usd))}/t)`;
     const quandoSpread = i === ate ? `em ${rotuloMes(p[i])}` : `em ${rotuloMes(p[i])}, o último mês comparável do período`;
     frases.spread = `${i === ate ? "" : `${fora(ate, "da comparação", "benchmark do Banco Mundial")} `}Spread de ${nome} na base comparável (${base.comparacao}) ${quandoSpread}: ${comSinal(s, fmt1, "+")}%${emUsd}, com o preço do Brasil a ${brasil} e o benchmark a ${porTonelada(valor("bm", i))}. No período, o spread ficou acima de zero em ${fmt0.format(acima)} de ${fmt0.format(meses.length)} ${meses.length === 1 ? "mês comparável" : "meses comparáveis"}. ${NAO_E_AGIO} ${fontes}`;

@@ -234,7 +234,7 @@ def frases_benchmark(dados: dict, chave: str, indices: list[int]) -> dict[str, s
             f"{NAO_E_AGIO} {FONTE_BM}"
         )
         meses = [x for x in indices if comparavel(x)]
-        acima = sum(1 for x in meses if valor("spread_pct", x) > 0)
+        acima = sum(1 for x in meses if F.sinal_de(valor("spread_pct", x), F.fmt1, "+") == "+")  # pelo número arredondado: +0,0% não conta
         em_usd = "" if F.nulo(usd) else f" ({F.sinal_de(usd, F.fmt0, '+')}US$ {F.fmt0(abs(usd))}/t)"
         quando_spread = f"em {F.rotulo_mes(p[i])}" if i == ate else f"em {F.rotulo_mes(p[i])}, o último mês comparável do período"
         antes = "" if i == ate else f"{fora(ate, 'da comparação', 'benchmark do Banco Mundial')} "
