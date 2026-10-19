@@ -189,18 +189,22 @@ Para ver localmente, rode `python -m http.server` na raiz do repositório e abra
 
 O workflow [`pages.yml`](.github/workflows/pages.yml) publica o dashboard no GitHub Pages, em
 <https://mvsantos-dev.github.io/Graaos/>, o espelho do site principal, a
-cada push na `main` que altere `dashboard/`, o `dashboard.json` ou o `boletins/latest.json`
-(publicado como `boletim.json`), ou manualmente, em
+cada push na `main` que altere `dashboard/`, o `dashboard.json`, os `boletins/*.json` (o
+`latest.json` é publicado como `boletim.json`), o `build_site.sh`, o `src/estatico/` ou os
+`src/boletim.py`, `src/config.py` e `src/llm.py`, ou manualmente, em
 Actions → Pages → Run workflow. Ele não usa nenhum segredo; o único pré-requisito é, em
 **Settings → Pages**, escolher **Source: GitHub Actions**.
 
 O site é montado pelo [`build_site.sh`](build_site.sh), o mesmo no GitHub Pages e na Cloudflare.
 Ele copia `dashboard/` e põe os dados na raiz do site, onde o `index.html` os procura:
 `dashboard.json` (de `data/processed/`, com todos os gráficos e o mapa de fluxos) e
-`boletim.json` (de `boletins/latest.json`; `{}` enquanto não houver boletim). No fim, o build
-**falha** (exit 1) se faltar o `index.html`, o `dashboard.json` ou algum arquivo de `assets/`, ou se
-algum JSON for inválido ou não tiver os blocos que a página lê: melhor um deploy que falha do que
-um site no ar sem dados. Para ver o site montado localmente:
+`boletim.json` (de `boletins/latest.json`; `{}` enquanto não houver boletim). Depois roda o
+`src/estatico`, que escreve o conteúdo estático e os arquivos de indexação (veja
+[SEO e indexação](#seo-e-indexação)). No fim, o build **falha** (exit 1) se faltar o
+`index.html`, o `dashboard.json`, algum arquivo de `assets/`, um ícone ou um arquivo de
+indexação, se algum JSON for inválido ou não tiver os blocos que a página lê, ou se alguma
+referência a `assets/` ficar sem a versão `?v=` ou apontar para um arquivo que não existe: melhor
+um deploy que falha do que um site no ar sem dados. Para ver o site montado localmente:
 
 ```bash
 bash build_site.sh            # monta em site/
@@ -211,6 +215,46 @@ Na Cloudflare (Workers com assets estáticos, sem nenhum segredo no repositório
 [`wrangler.jsonc`](wrangler.jsonc) publica a pasta `./site` (`assets.directory`). Nas configurações
 de build do Worker: comando de build `bash build_site.sh` e comando de deploy `npx wrangler deploy`.
 O nome do Worker precisa ser o mesmo do campo `name` do `wrangler.jsonc`.
+
+### SEO e indexação
+
+Tudo é gerado no build (`python3 -m src.estatico`, chamado pelo `build_site.sh`, só biblioteca
+padrão), a partir do `dashboard.json`, do `boletim.json` e dos `boletins/AAAA-MM.json`: nenhum
+número é escrito à mão.
+
+- **Conteúdo sem JavaScript.** O `index.html` já vem com o card Resumo (último mês e acumulado),
+  os destaques (maiores origens e relação de troca no porto), uma frase de resumo em cada
+  gráfico, repetida no texto alternativo (`aria-label`), e as tabelas de "Ver tabela", na visão
+  padrão (todos os grupos, período inteiro). O script redesenha por cima com o filtro escolhido;
+  os testes de navegador conferem que, na visão padrão, o HTML do build e o desenho do script são
+  idênticos.
+- **Páginas dos boletins.** Uma página estática por mês da base, em
+  [`/boletim/AAAA-MM/`](https://radar.graaos.cloud/boletim/), com título, descrição, `canonical`,
+  Open Graph e JSON-LD próprios, os números do mês e do acumulado, a tabela por grupo, a relação
+  de troca no porto (não é o preço ao produtor) e, no último mês e nos dezembros, origens, portos
+  e rotas do ano. As frases são modelos preenchidos pelo programa com o pacote de fatos do
+  boletim; o texto da IA entra quando há `boletins/AAAA-MM.json`. O arquivo `/boletim/` lista todos
+  os meses, e a home liga o último.
+- **Cabeçalho.** Título, descrição, `canonical`, `theme-color`, ícones PNG (renderizados do
+  favicon SVG e guardados em `dashboard/`) e `site.webmanifest`; preload só das fontes da primeira
+  tela.
+- **Dados estruturados** (JSON-LD do schema.org): `WebSite`, `Organization` e `Dataset`, com o
+  período da base, a licença CC BY 4.0 dos dados tratados, as variáveis medidas, os links de
+  download dos CSV e Parquet do repositório e do `dashboard.json`, as fontes e a data da última
+  atualização.
+- **Rastreamento.** `robots.txt` (tudo liberado, com o endereço do sitemap), `sitemap.xml` (todas
+  as páginas, com `lastmod`), `404.html` no visual do site (a Cloudflare a mostra em qualquer
+  endereço que não existe: `not_found_handling` no `wrangler.jsonc`) e `llms.txt`, um resumo do
+  Graaos, das fontes e de onde ficam os dados abertos, para assistentes de IA.
+- **Cache e desempenho.** O `_headers` (só na Cloudflare) dá um ano de cache aos arquivos de
+  `assets/`, porque toda referência a eles leva `?v=` com o hash do conteúdo; páginas e JSON são
+  revalidados a cada visita. O `dashboard.json` só é buscado depois da primeira pintura, e cada
+  gráfico só é montado quando chega perto da tela (todos antes de imprimir). Ao recarregar no meio
+  da página, ela volta ao trecho que estava sendo lido.
+
+A data da última atualização (rodapé, `lastmod` do sitemap e `dateModified` do JSON-LD) vem do
+histórico do git do `dashboard.json`. Num clone raso, como o do build da Cloudflare, ela sai como a
+do último commit, e o `build_site.sh` avisa.
 
 ### Mapa de fluxos
 
@@ -359,8 +403,10 @@ Banco Mundial entram junto com o mês seguinte (o log lista os valores revisados
 ## Boletim mensal com IA (fase 5)
 
 Todo mês, um texto curto de análise sobre o último mês de dados: título, lead e 4 a 6
-parágrafos, em `boletins/AAAA-MM.md`, com o mais recente em `boletins/latest.json` (lido
-pelo card do dashboard). O [histórico](boletins/) fica no repositório.
+parágrafos, em `boletins/AAAA-MM.md` (e o mesmo conteúdo em `boletins/AAAA-MM.json`, lido pela
+página do mês no site), com o mais recente em `boletins/latest.json` (lido pelo card do
+dashboard). O [histórico](boletins/) fica no repositório, e cada mês tem uma página em
+[radar.graaos.cloud/boletim/](https://radar.graaos.cloud/boletim/).
 
 ### Como a IA é usada (e por que ela não inventa números)
 
@@ -521,7 +567,7 @@ todo), e um mês antigo não tira o mais recente do `latest.json`.
    python -m src.boletim --mock                         # formato do boletim, sem IA e sem chave
    cp .env.example .env                                 # preencha a chave do seu provedor
    set -a; . ./.env; set +a
-   python -m src.boletim --saida boletins/local         # grava boletins/local/AAAA-MM.md e latest.json
+   python -m src.boletim --saida boletins/local         # grava boletins/local/AAAA-MM.md, AAAA-MM.json e latest.json
    ```
 
    `boletins/local/` fica fora do Git, como `boletins/mock/`. Sem `--saida`, o programa
