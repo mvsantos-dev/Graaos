@@ -2699,7 +2699,7 @@ function fraseRazaoMap(indices) {
   const m = meses[meses.length - 1], { r, media, maior, menor } = razoesMap(meses);
   let frase = `${quandoCustoMap(m, ate)}, o custo de insumo equivaleu a ${pct(r(m))} do CIF do MAP, no porto.`;
   if (meses.length > 1) frase += ` Na média dos ${fmt0.format(meses.length)} meses do período nos gráficos, ${pct(media)}; o maior, ${pct(r(maior))}, em ${rotuloMes(maior)}, e o menor, ${pct(r(menor))}, em ${rotuloMes(menor)}.`;
-  return comFonteComex(`${frase} É uma aproximação técnica, não o custo de nenhuma empresa.`);
+  return comFonteComex(`${frase} É uma aproximação técnica, não o custo de nenhuma empresa nem o preço ao produtor.`);
 }
 
 // Notas dos cartões e o item do Método (as notas do bloco, com os coeficientes do config.py).

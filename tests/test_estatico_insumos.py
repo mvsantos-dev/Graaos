@@ -179,7 +179,7 @@ def test_razao_com_media_maior_e_menor(falsos):
     frase = I.frase_razao_map(falsos, _todos(falsos))
     assert frase == (f"Em mar/2026, o custo de insumo equivaleu a {F.pct(100 * r[-1])} do CIF do MAP, no porto. Na média dos 27 meses do "
                      f"período nos gráficos, {F.pct(s / 27)}; o maior, 70,0%, em fev/2024, e o menor, 40,0%, em jan/2024. É uma aproximação "
-                     f"técnica, não o custo de nenhuma empresa. {FONTE_COMEX}")
+                     f"técnica, não o custo de nenhuma empresa nem o preço ao produtor. {FONTE_COMEX}")
     # um mês só: sem média
     assert "média" not in I.frase_razao_map(falsos, [26])
 
@@ -236,7 +236,7 @@ def test_frases_seguem_as_regras_das_saidas_publicas():
         assert frase.endswith(FONTE_PINK if id_ == "resumo-rocha" else FONTE_COMEX), (id_, frase)
         if id_ in ("resumo-custo-map", "resumo-razao-map"):
             assert "no porto" in frase and "aproximação técnica, não o custo de nenhuma empresa" in frase, frase
-        if id_ == "resumo-custo-map" and "Nenhum mês" not in frase:
+        if id_ in ("resumo-custo-map", "resumo-razao-map") and "Nenhum mês" not in frase:
             assert "nem o preço ao produtor" in frase, frase
         if id_ == "resumo-rocha" and "Nenhum mês" not in frase:
             assert "Não é ágio: o benchmark é de outro lugar e de outro momento de contrato." in frase, frase

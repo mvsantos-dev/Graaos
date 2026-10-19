@@ -263,7 +263,7 @@ def frase_razao_map(dados: dict, indices: list[int]) -> str:
     if len(meses) > 1:
         frase += (f" Na média dos {F.fmt0(len(meses))} meses do período nos gráficos, {F.pct(z['media'])}; o maior, {F.pct(r(z['maior']))}, "
                   f"em {F.rotulo_mes(z['maior'])}, e o menor, {F.pct(r(z['menor']))}, em {F.rotulo_mes(z['menor'])}.")
-    return com_fonte_comex(f"{frase} É uma aproximação técnica, não o custo de nenhuma empresa.")
+    return com_fonte_comex(f"{frase} É uma aproximação técnica, não o custo de nenhuma empresa nem o preço ao produtor.")
 
 
 def frases(dados: dict, indices: list[int]) -> dict[str, str]:
