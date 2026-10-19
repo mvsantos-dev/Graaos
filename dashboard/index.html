@@ -61,6 +61,7 @@
       <a href="#fluxos" data-secao="fluxos">Fluxos</a>
       <a href="#portos" data-secao="portos">Portos e rotas</a>
       <a href="#precos" data-secao="precos">Preços</a>
+      <a href="#insumos" data-secao="insumos">Insumos</a>
       <a href="#troca" data-secao="troca">Troca</a>
       <a href="#metodo" data-secao="metodo">Método</a>
       <a class="nav-alertas" href="#lista-espera" data-secao="lista-espera">Receber alertas</a>
@@ -441,9 +442,60 @@
     </section>
     </section>
 
+    <!-- Insumos do fósforo (bloco "insumos" do dashboard.json): enxofre, rocha fosfática x Pink Sheet e custo de
+         insumo por tonelada de MAP. O build escreve as frases, notas e tabelas da visão padrão (src/estatico/insumos.py). -->
+    <section class="bloco" id="insumos" aria-labelledby="t-insumos">
+      <header class="bloco-cabecalho">
+        <p class="kicker">07 · Insumos</p>
+        <h2 class="titulo-bloco" id="t-insumos" tabindex="-1">Insumos do fósforo</h2>
+        <p class="bloco-lead">Enxofre e rocha fosfática importados, as matérias-primas do ácido fosfórico do MAP e do DAP: preço e volume de cada um, a rocha contra a Pink Sheet do Banco Mundial e uma aproximação do custo de insumo por tonelada de MAP, no porto. O intervalo de meses vale aqui; o filtro de grupo, não.<span id="link-insumos-pagina"></span></p>
+      </header>
+    <div class="grade duas">
+      <section class="cartao" aria-labelledby="titulo-enxofre" id="secao-enxofre">
+        <h3 class="titulo-cartao" id="titulo-enxofre">Enxofre: preço e volume importados</h3>
+        <p class="nota" id="nota-enxofre"></p>
+        <p class="resumo-grafico" id="resumo-enxofre"></p>
+        <ul class="legenda" id="legenda-enxofre"></ul>
+        <div class="grafico alto-260"><canvas id="grafico-enxofre" role="img"></canvas></div>
+        <h3 class="subtitulo">Toneladas importadas por mês</h3>
+        <p class="resumo-grafico" id="resumo-enxofre-t"></p>
+        <div class="grafico alto-200"><canvas id="grafico-enxofre-t" role="img"></canvas></div>
+        <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-enxofre"></div></details>
+      </section>
+      <section class="cartao" aria-labelledby="titulo-rocha" id="secao-rocha">
+        <h3 class="titulo-cartao" id="titulo-rocha">Rocha fosfática: Brasil x mercado internacional</h3>
+        <p class="nota" id="nota-rocha"></p>
+        <p class="resumo-grafico" id="resumo-rocha"></p>
+        <p class="ressalva"><strong>Referência de outro lugar, não ágio.</strong> A Pink Sheet do Banco Mundial cota a rocha fosfática no porto de embarque do Norte da África. A diferença para o preço do Brasil mistura origem, teor de fósforo da rocha, prazo de contrato e defasagem entre o negócio e o desembarque.</p>
+        <ul class="legenda" id="legenda-rocha"></ul>
+        <div class="grafico alto-260"><canvas id="grafico-rocha" role="img"></canvas></div>
+        <h3 class="subtitulo">Toneladas importadas por mês</h3>
+        <p class="resumo-grafico" id="resumo-rocha-t"></p>
+        <div class="grafico alto-200"><canvas id="grafico-rocha-t" role="img"></canvas></div>
+        <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-rocha"></div></details>
+      </section>
+    </div>
+
+    <section class="cartao grade" aria-labelledby="titulo-custo-map" id="secao-custo-map">
+      <div>
+        <h3 class="titulo-cartao" id="titulo-custo-map">Custo de insumo do MAP: enxofre e rocha x CIF do MAP</h3>
+        <p class="nota" id="nota-custo-map"></p>
+        <p class="resumo-grafico" id="resumo-custo-map"></p>
+        <p class="ressalva"><strong>Aproximação técnica, no porto.</strong> Quanto custariam, ao preço CIF de importação, o enxofre e a rocha fosfática de uma tonelada de MAP, pelos coeficientes de consumo do <a href="#metodo-insumos" data-secao="metodo-insumos">Método</a>. Não é o custo de nenhuma empresa nem o preço ao produtor: ficam de fora o nitrogênio do MAP, a energia, a conversão, os impostos, o frete interno e o insumo de origem nacional.</p>
+        <ul class="legenda" id="legenda-custo-map"></ul>
+        <div class="grafico alto-300"><canvas id="grafico-custo-map" role="img"></canvas></div>
+        <h3 class="subtitulo">Custo de insumo ÷ CIF do MAP (%)</h3>
+        <p class="resumo-grafico" id="resumo-razao-map"></p>
+        <ul class="legenda" id="legenda-razao-map"></ul>
+        <div class="grafico alto-260"><canvas id="grafico-razao-map" role="img"></canvas></div>
+        <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-custo-map"></div></details>
+      </div>
+    </section>
+    </section>
+
     <section class="bloco" id="troca" aria-labelledby="t-troca">
       <header class="bloco-cabecalho">
-        <p class="kicker">07 · Troca</p>
+        <p class="kicker">08 · Troca</p>
         <h2 class="titulo-bloco" id="t-troca" tabindex="-1">Quanto de soja paga o adubo</h2>
         <p class="bloco-lead">Relação de troca medida no porto: soja exportada contra fertilizante importado no mesmo mês. Não é o preço ao produtor.</p>
       </header>
@@ -552,7 +604,7 @@
 
     <section class="bloco" id="metodo" aria-labelledby="t-metodo">
       <header class="bloco-cabecalho">
-        <p class="kicker">08 · Método</p>
+        <p class="kicker">09 · Método</p>
         <h2 class="titulo-bloco" id="t-metodo" tabindex="-1">Método e fontes</h2>
         <p class="bloco-lead">Só dados abertos oficiais. Cada gráfico tem a tabela com os números.</p>
       </header>
@@ -566,6 +618,7 @@
           <li id="rodape-bm" class="oculto">Brasil x mercado internacional: preço implícito do Brasil (KCl NCM 31042090, ureia 31021010, MAP 31054000, DAP 310530, TSP 31031030 e 31031100) contra a Pink Sheet do Banco Mundial (CC BY 4.0); o MAP usa o DAP como referência. Spread comparável = FOB Brasil − benchmark quando o benchmark é FOB; CIF Brasil − benchmark quando ele é um preço no destino. CIF em reais pela PTAX venda média do mês (BCB, SGS 3698, ODbL).</li>
           <li>Mapa: pontos gerados a partir do Natural Earth 1:110m (domínio público), em projeção equirretangular.</li>
           <li>Custo por nutriente = preço CIF ÷ teor do nutriente no grau comercial usual (ureia 46% de N, sulfato de amônio 21% de N, nitrato de amônio 34% de N, MAP 11-52, DAP 18-46, TSP 46% de P₂O₅, KCl 60% de K₂O); no MAP e no DAP, o N é descontado pelo custo do N da ureia no mesmo mês. Em reais pela PTAX venda média do mês. A tabela completa está em data/processed/custo_nutriente_mensal.csv.</li>
+          <li id="metodo-insumos"></li>
           <li>Estados: a UF do produto no Comex Stat, que na importação é a UF de destino da mercadoria, qualquer que seja a sede do importador (e não a do porto de chegada); a tabela completa está em data/processed/share_uf_ano.csv.</li>
         </ul>
       </div>
@@ -582,6 +635,9 @@
           <div><dt>Preço implícito (US$/t)</dt><dd>Valor importado ÷ toneladas: a média ponderada pelo peso, e não o preço de um contrato.</dd></div>
           <div><dt>Custo por nutriente</dt><dd>O "custo da molécula": preço CIF ÷ teor do nutriente (N, P₂O₅ ou K₂O). Ureia a US$ 460/t com 46% de N = US$ 1.000 por tonelada de N.</dd></div>
           <div><dt>Crédito de N</dt><dd>No MAP e no DAP, o N que vem junto vale o que custaria na ureia do mesmo mês; o resto do preço é o custo do P₂O₅.</dd></div>
+          <div><dt>Enxofre</dt><dd>Matéria-prima do ácido sulfúrico, que ataca a rocha fosfática para fazer o ácido fosfórico do MAP e do DAP. Vem sobretudo do refino de petróleo e de gás natural.</dd></div>
+          <div><dt>Rocha fosfática</dt><dd>Fosfato de cálcio natural, a fonte do fósforo dos fertilizantes fosfatados. Atacada com ácido, vira ácido fosfórico ou superfosfato; moída, também vai direto ao solo.</dd></div>
+          <div><dt>Custo de insumo do MAP</dt><dd>Aproximação técnica: o CIF do enxofre e da rocha fosfática importados vezes o consumo de cada um por tonelada de MAP (coeficientes no Método). Não é o custo de nenhuma empresa nem o preço ao produtor.</dd></div>
           <div><dt>NCM</dt><dd>Nomenclatura Comum do Mercosul: o código de 8 dígitos do produto na importação.</dd></div>
           <div><dt>URF</dt><dd>Unidade da Receita Federal onde a carga é desembaraçada (o porto de chegada, na prática).</dd></div>
           <div><dt>UF de destino</dt><dd>A UF do produto no Comex Stat: na importação, é a UF de destino da mercadoria, qualquer que seja a sede do importador, e não a do porto de chegada.</dd></div>
@@ -2507,6 +2563,419 @@ function desenharBenchmark(indices) {
       n(ptax(i), fmt4), n(valor("cif_brl_t", i), fmt0), pequena(i) ? "pequena" : ""]));
 }
 
+// --- Insumos do fósforo: enxofre, rocha fosfática e custo de insumo do MAP ------------------
+// Seção sem o filtro de grupo (enxofre e rocha não são de um grupo de nutriente): só o intervalo
+// de meses vale. Cada insumo tem o gráfico de preço (a âncora dos sinais) e, embaixo, o de
+// toneladas, no mesmo eixo do tempo; o custo de insumo por tonelada de MAP vem com a razão sobre o
+// CIF do MAP. Mês de amostra pequena (corte_amostra_t do bloco) fica fora das linhas de preço e
+// marcado na tabela. O build escreve as frases, notas, tabelas e o item do Método da visão padrão
+// (src/estatico/insumos.py, com as mesmas regras): mudou aqui, muda lá
+// (tests/e2e/test_estatico_insumos.py compara as duas).
+const fmtCoef = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+const FONTE_INSUMOS_PINK = "Fonte: Comex Stat/MDIC; Banco Mundial (Pink Sheet).";
+// Valor de uma série do bloco "insumos" no mês dado (AAAA-MM); fora do bloco, null.
+const noMesInsumos = (serie, periodo) => { const k = dados.insumos.periodos.indexOf(periodo); return k < 0 ? null : serie[k] ?? null; };
+const pequenaInsumo = (prod, periodo) => noMesInsumos(prod.amostra_pequena, periodo) === true;
+// Por que o mês não tem o preço do insumo: sem dado, sem importação, amostra pequena ou sem o que falta.
+function semPrecoInsumo(prod, periodo, onde, falta) {
+  const nome = nomeNaFrase(prod.nome), t = noMesInsumos(prod.t, periodo);
+  if (nulo(t)) return `Em ${rotuloMes(periodo)}, não há dado de importação de ${nome}.`;
+  if (t === 0) return `Em ${rotuloMes(periodo)}, não houve importação de ${nome}.`;
+  if (pequenaInsumo(prod, periodo)) return `Em ${rotuloMes(periodo)}, a importação de ${nome} foi de ${toneladas(t)}, menos de ${fmt0.format(prod.corte_amostra_t)} t: amostra pequena, ${onde}.`;
+  return `Em ${rotuloMes(periodo)}, não há ${falta} para ${nome}.`;
+}
+
+// Toneladas: o último mês do período contra o mesmo mês do ano anterior e o acumulado do ano (só
+// com todos os meses no bloco: null é mês fora do período ingerido, não zero).
+function fraseVolumeInsumo(chave, indices) {
+  const prod = dados.insumos.produtos[chave], nome = nomeNaFrase(prod.nome);
+  const t = (periodo) => noMesInsumos(prod.t, periodo);
+  const ate = periodos()[indices[indices.length - 1]];
+  const ano = Number(ate.slice(0, 4)), mes = Number(ate.slice(5, 7)), antes = mesAnoAntes(ate);
+  if (nulo(t(ate))) return comFonteComex(`Em ${rotuloMes(ate)}, não há dado de importação de ${nome}.`);
+  const noMes = comparadoA(variacaoPct(t(ate), t(antes)), rotuloMes(antes));
+  let frase = t(ate) > 0 ? `Em ${rotuloMes(ate)}, o Brasil importou ${toneladas(t(ate))} de ${nome}${noMes ? `, ${noMes}` : ""}.` : `Em ${rotuloMes(ate)}, o Brasil não importou ${nome}.`;
+  const acumulado = (a) => {
+    let s = 0;
+    for (let m = 1; m <= mes; m++) {
+      const v = t(`${a}-${pad(m)}`);
+      if (nulo(v)) return null;
+      s += v;
+    }
+    return s;
+  };
+  const tAcum = mes > 1 ? acumulado(ano) : null;
+  if (!nulo(tAcum)) {
+    const noAcum = comparadoA(variacaoPct(tAcum, acumulado(ano - 1)), `jan–${MESES[mes - 1]}/${ano - 1}`);
+    frase += ` No acumulado de jan–${MESES[mes - 1]}/${ano}, foram ${toneladas(tAcum)}${noAcum ? `, ${noAcum}` : ""}.`;
+  }
+  return comFonteComex(frase);
+}
+
+// Enxofre: CIF, FOB e frete do último mês (o CIF contra o mesmo mês do ano anterior) e o menor e o
+// maior CIF do período, sem os meses de amostra pequena.
+function frasePrecoEnxofre(indices) {
+  const prod = dados.insumos.produtos.enxofre, nome = nomeNaFrase(prod.nome), p = periodos();
+  const v = (campo, periodo) => noMesInsumos(prod[campo], periodo);
+  const comPreco = (periodo) => !nulo(v("cif", periodo)) && !pequenaInsumo(prod, periodo);
+  const ate = p[indices[indices.length - 1]], antes = mesAnoAntes(ate);
+  let frase;
+  if (comPreco(ate)) {
+    const dif = diferencaEmTexto(variacaoPct(v("cif", ate), comPreco(antes) ? v("cif", antes) : null), rotuloMes(antes));
+    frase = `Em ${rotuloMes(ate)}, o ${nome} importado custou ${porTonelada(v("cif", ate))} CIF${dif ? ` (${dif})` : ""}, com ${porTonelada(v("fob", ate))} FOB e ${porTonelada(v("frete", ate))} de frete.`;
+  } else frase = semPrecoInsumo(prod, ate, "fora do gráfico de preço", "preço");
+  const meses = indices.map((i) => p[i]).filter(comPreco);
+  if (meses.length > 1) {
+    let menor = meses[0], maior = meses[0];
+    for (const x of meses) {
+      if (v("cif", x) < v("cif", menor)) menor = x;
+      if (v("cif", x) > v("cif", maior)) maior = x;
+    }
+    frase += ` No período, o CIF foi de ${porTonelada(v("cif", menor))} (${rotuloMes(menor)}, o menor) a ${porTonelada(v("cif", maior))} (${rotuloMes(maior)}, o maior).`;
+  }
+  return comFonteComex(frase);
+}
+
+// Rocha: o último mês comparável do período (sem amostra pequena e com o benchmark), com o preço do
+// Brasil da base do benchmark, o spread e quantos meses ficaram acima dele (pelo número arredondado);
+// se o último mês ficou fora, diz por quê.
+function fraseRocha(indices) {
+  const prod = dados.insumos.produtos.rocha, ref = prod.benchmark, nome = nomeNaFrase(prod.nome), p = periodos();
+  const v = (serie, i) => noMesInsumos(serie, p[i]);
+  const comparavel = (i) => !pequenaInsumo(prod, p[i]) && !nulo(v(ref.spread_pct, i));
+  const ate = indices[indices.length - 1];
+  const fora = () => semPrecoInsumo(prod, p[ate], "fora da comparação", "benchmark do Banco Mundial");
+  const meses = indices.filter(comparavel);
+  if (!meses.length) return `${fora()} Nenhum mês do período tem preço comparável com o benchmark. ${FONTE_INSUMOS_PINK}`;
+  const i = meses[meses.length - 1];
+  const naOrigem = ref.comparacao.startsWith("FOB");
+  const brasil = `${porTonelada(v(naOrigem ? prod.fob : prod.cif, i))} ${naOrigem ? "FOB" : "CIF"}`;
+  const s = v(ref.spread_pct, i), usd = v(ref.spread_usd_t, i);
+  const sinal = sinalDe(s, fmt1, "+");
+  const relacao = sinal ? `${fmt1.format(Math.abs(s))}% ${sinal === MENOS ? "abaixo" : "acima"} do benchmark` : "praticamente igual ao benchmark";
+  const emUsd = nulo(usd) ? "" : ` (${sinalDe(usd, fmt0, "+")}US$ ${fmt0.format(Math.abs(usd))}/t)`;
+  const acima = meses.filter((x) => sinalDe(v(ref.spread_pct, x), fmt1, "+") === "+").length;
+  const quando = i === ate ? `Em ${rotuloMes(p[i])}` : `${fora()} Em ${rotuloMes(p[i])}, o último mês comparável do período`;
+  return `${quando}, o Brasil importou ${nome} a ${porTonelada(v(prod.fob, i))} FOB e ${porTonelada(v(prod.cif, i))} CIF; o benchmark do Banco Mundial (${ref.serie}), na base ${ref.base}, foi de ${porTonelada(v(ref.bm, i))}. Na base comparável (${ref.comparacao}), o preço do Brasil, de ${brasil}, ficou ${relacao}${emUsd}. No período, ficou acima do benchmark em ${fmt0.format(acima)} de ${fmt0.format(meses.length)} ${meses.length === 1 ? "mês comparável" : "meses comparáveis"}. ${NAO_E_AGIO} ${FONTE_INSUMOS_PINK}`;
+}
+
+// Custo de insumo e razão: os meses com os três preços (enxofre, rocha e MAP) fora da amostra pequena.
+const custoMapNoMes = (campo, periodo) => noMesInsumos(dados.insumos.custo_map[campo], periodo);
+const custoUsavel = (periodo) => ["custo", "cif_map", "razao"].every((campo) => !nulo(custoMapNoMes(campo, periodo)))
+  && ["enxofre", "rocha"].every((k) => !nulo(noMesInsumos(dados.insumos.produtos[k].cif, periodo))) && custoMapNoMes("amostra_pequena", periodo) !== true;
+function semCustoMap(periodo) {
+  const b = dados.insumos, nomes = ["enxofre", "rocha"].map((k) => nomeNaFrase(b.produtos[k].nome));
+  if (custoMapNoMes("amostra_pequena", periodo) === true) {
+    const cortes = [b.produtos.enxofre.corte_amostra_t, b.produtos.rocha.corte_amostra_t, b.custo_map.corte_amostra_map_t].map((x) => fmt0.format(x));
+    return `Em ${rotuloMes(periodo)}, o custo de insumo fica fora dos gráficos: amostra pequena (menos de ${cortes[0]} t de ${nomes[0]}, ${cortes[1]} t de ${nomes[1]} ou ${cortes[2]} t de MAP no mês).`;
+  }
+  return `Em ${rotuloMes(periodo)}, não há custo de insumo: falta o preço de ${nomes[0]}, de ${nomes[1]} ou de MAP no mês.`;
+}
+const quandoCustoMap = (m, ate) => (m === ate ? `Em ${rotuloMes(m)}` : `${semCustoMap(ate)} Em ${rotuloMes(m)}, o último mês do período nos gráficos`);
+function fraseCustoMap(indices) {
+  const b = dados.insumos, c = b.custo_map, p = periodos();
+  const ate = p[indices[indices.length - 1]];
+  const meses = indices.map((i) => p[i]).filter(custoUsavel);
+  if (!meses.length) return comFonteComex(`${semCustoMap(ate)} Nenhum mês do período tem custo de insumo.`);
+  const m = meses[meses.length - 1];
+  const parte = (chave, coef) => `${fmtCoef.format(coef)} t de ${nomeNaFrase(b.produtos[chave].nome)} a ${porTonelada(noMesInsumos(b.produtos[chave].cif, m))} CIF`;
+  return comFonteComex(`${quandoCustoMap(m, ate)}, o custo de insumo por tonelada de MAP, no porto, foi de ${porTonelada(custoMapNoMes("custo", m))}: ${parte("enxofre", c.coef_enxofre)} e ${parte("rocha", c.coef_rocha)}. O CIF do MAP importado no mesmo mês foi de ${porTonelada(custoMapNoMes("cif_map", m))}. É uma aproximação técnica, não o custo de nenhuma empresa nem o preço ao produtor.`);
+}
+// Razão em %: a média simples dos meses (na ordem do período), e o maior e o menor deles.
+function razoesMap(meses) {
+  const r = (x) => 100 * custoMapNoMes("razao", x);
+  let s = 0, maior = meses[0], menor = meses[0];
+  for (const x of meses) {
+    s += r(x);
+    if (r(x) > r(maior)) maior = x;
+    if (r(x) < r(menor)) menor = x;
+  }
+  return { r, media: meses.length ? s / meses.length : null, maior, menor };
+}
+function fraseRazaoMap(indices) {
+  const p = periodos(), ate = p[indices[indices.length - 1]];
+  const meses = indices.map((i) => p[i]).filter(custoUsavel);
+  if (!meses.length) return comFonteComex(`${semCustoMap(ate)} Nenhum mês do período tem a razão entre o custo de insumo e o CIF do MAP.`);
+  const m = meses[meses.length - 1], { r, media, maior, menor } = razoesMap(meses);
+  let frase = `${quandoCustoMap(m, ate)}, o custo de insumo equivaleu a ${pct(r(m))} do CIF do MAP, no porto.`;
+  if (meses.length > 1) frase += ` Na média dos ${fmt0.format(meses.length)} meses do período nos gráficos, ${pct(media)}; o maior, ${pct(r(maior))}, em ${rotuloMes(maior)}, e o menor, ${pct(r(menor))}, em ${rotuloMes(menor)}.`;
+  return comFonteComex(`${frase} É uma aproximação técnica, não o custo de nenhuma empresa.`);
+}
+
+// Notas dos cartões e o item do Método (as notas do bloco, com os coeficientes do config.py).
+function notasInsumos(indices) {
+  const b = dados.insumos, p = periodos(), c = b.custo_map;
+  const periodo = `${rotuloMes(p[indices[0]])} a ${rotuloMes(p[indices[indices.length - 1]])}`;
+  const enx = b.produtos.enxofre, rocha = b.produtos.rocha, ref = rocha.benchmark;
+  const descricao = (prod) => prod.descricao.charAt(0).toUpperCase() + prod.descricao.slice(1);  // "Enxofre a granel ... (NCM 2503)"
+  return {
+    "nota-enxofre": `${descricao(enx)} · US$ por tonelada e toneladas · ${periodo} · meses com menos de ${fmt0.format(enx.corte_amostra_t)} t ficam fora das linhas de preço (na tabela, "pequena")`,
+    "nota-rocha": `${descricao(rocha)} · benchmark: ${ref.serie}, ${ref.base}, Banco Mundial · ${periodo} · meses com menos de ${fmt0.format(rocha.corte_amostra_t)} t ficam fora da comparação (na tabela, "pequena")`,
+    "nota-custo-map": `Custo de insumo = CIF do enxofre × ${fmtCoef.format(c.coef_enxofre)} + CIF da rocha fosfática × ${fmtCoef.format(c.coef_rocha)}, em US$ por tonelada de MAP · CIF do MAP: NCM ${c.ncms_map.join(", ")} · ${periodo} · o mês com amostra pequena de um dos três fica fora dos gráficos`,
+    "metodo-insumos": `Insumos do fósforo (enxofre e rocha fosfática importados): ${b.notas.join(" ")}`,
+  };
+}
+
+// Os dois gráficos de um cartão dividem o eixo do tempo: mesma largura do eixo y e mesma margem
+// direita (a dos rótulos na ponta das linhas), para os meses caírem na mesma vertical.
+function eixosInsumos(formatarY) {
+  const escalas = eixos({ formatarY, maxTicksX: estreito() ? 4 : 6 });
+  escalas.x.offset = true;
+  escalas.y.afterFit = (escala) => { escala.width = 48; };
+  return escalas;
+}
+function linhaInsumo(label, data, corLinha, rotuloFinal, tracejado = false) {
+  // mês entre dois sem linha (amostra pequena ou borda do período) vira um ponto
+  const isolado = (k) => !nulo(data[k]) && nulo(data[k - 1]) && nulo(data[k + 1]);
+  return {
+    label, data, rotuloFinal, borderColor: corLinha, backgroundColor: corLinha, borderWidth: 2, borderDash: tracejado ? [6, 4] : [],
+    pointRadius: (c) => (isolado(c.dataIndex) ? 3 : 0),
+    pointHoverRadius: 4, pointHoverBorderWidth: 2, pointHoverBorderColor: cor("--superficie"), tension: 0, spanGaps: false,
+  };
+}
+function graficoToneladasInsumo(chave, indices, margem) {
+  const prod = dados.insumos.produtos[chave], p = periodos(), corP = corGrupo("P");
+  novoGrafico(`grafico-${chave}-t`, {
+    type: "bar",
+    data: {
+      labels: indices.map((i) => rotuloMes(p[i])),
+      datasets: [{ label: "Toneladas", data: indices.map((i) => noMesInsumos(prod.t, p[i])), backgroundColor: corP, borderRadius: 2, borderSkipped: "start", barPercentage: 0.9, categoryPercentage: 0.9 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: margem,
+      interaction: { mode: "index", intersect: false },
+      scales: eixosInsumos((x) => fmtCompacto.format(x)),
+      plugins: {
+        legend: { display: false },
+        marcos: { produtos: [chave] },  // a linha "Marcos" dos dois gráficos do cartão
+        tooltip: {
+          enabled: false,
+          external: dicaExterna((pontos) => {
+            const periodo = p[indices[pontos[0].dataIndex]];
+            return {
+              titulo: pontos[0].label,
+              linhas: [{ corSerie: corP, valor: toneladas(pontos[0].raw), serie: "importadas" }],
+              extras: pequenaInsumo(prod, periodo) ? [`Amostra pequena (menos de ${fmt0.format(prod.corte_amostra_t)} t): preço fora do gráfico`] : [],
+            };
+          }),
+        },
+      },
+    },
+    plugins: [pluginCruz],
+  });
+}
+
+function desenharInsumos(indices) {
+  const b = dados.insumos;
+  document.getElementById("insumos").classList.toggle("oculto", !b);
+  document.getElementById("metodo-insumos").classList.toggle("oculto", !b);
+  if (!b) return;
+  for (const [id, valor] of Object.entries(notasInsumos(indices))) texto(id, valor);
+  desenharEnxofre(indices);
+  desenharRocha(indices);
+  desenharCustoMap(indices);
+}
+
+function desenharEnxofre(indices) {
+  const prod = dados.insumos.produtos.enxofre, p = periodos();
+  const rotulos = indices.map((i) => rotuloMes(p[i]));
+  const v = (campo, i) => noMesInsumos(prod[campo], p[i]);
+  const pequena = (i) => pequenaInsumo(prod, p[i]);
+  const semPequena = (campo) => indices.map((i) => (pequena(i) ? null : v(campo, i)));
+  const corP = corGrupo("P"), corCif = cor("--cif");
+  const margem = { padding: { right: estreito() ? 8 : 46 } };
+  const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
+  legenda("legenda-enxofre", [
+    { rotulo: "FOB (no porto de embarque)", corItem: corP, tipo: "linha" },
+    { rotulo: "CIF (com frete e seguro)", corItem: corCif, tipo: "linha" },
+  ]);
+  const frase = frasePrecoEnxofre(indices), fraseT = fraseVolumeInsumo("enxofre", indices);
+  texto("resumo-enxofre", frase);
+  texto("resumo-enxofre-t", fraseT);
+  document.getElementById("grafico-enxofre").setAttribute("aria-label", `${prod.nome}: preço implícito FOB e CIF em US$ por tonelada, ${intervalo}. A tabela abaixo traz os valores. ${frase}`);
+  document.getElementById("grafico-enxofre-t").setAttribute("aria-label", `${prod.nome}: toneladas importadas por mês, ${intervalo}. A tabela abaixo traz os valores. ${fraseT}`);
+  novoGrafico("grafico-enxofre", {
+    type: "line",
+    data: { labels: rotulos, datasets: [linhaInsumo("CIF", semPequena("cif"), corCif, "CIF"), linhaInsumo("FOB", semPequena("fob"), corP, "FOB")] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: margem,
+      interaction: { mode: "index", intersect: false },
+      scales: eixosInsumos((x) => fmt0.format(x)),
+      plugins: {
+        legend: { display: false },
+        rotulosFinais: { ativo: !estreito() },
+        marcos: { produtos: ["enxofre"], lista: false },
+        tooltip: {
+          enabled: false,
+          external: dicaExterna((pontos) => {
+            const i = indices[pontos[0].dataIndex];
+            const linhas = pontos.map((d) => ({ corSerie: d.dataset.borderColor, valor: porTonelada(d.raw), serie: d.dataset.label }));
+            return { titulo: pontos[0].label, linhas, extras: [`Frete: ${porTonelada(v("frete", i))}`, `Importado: ${toneladas(v("t", i))}`] };
+          }),
+        },
+      },
+    },
+    plugins: [pluginCruz, pluginRotulosFinais],
+  });
+  graficoToneladasInsumo("enxofre", indices, margem);
+  const n = (x) => (nulo(x) ? "–" : fmt0.format(x));
+  tabela("tabela-enxofre",
+    [{ titulo: "Mês" }, { titulo: "Toneladas", num: true }, { titulo: "FOB US$/t", num: true }, { titulo: "CIF US$/t", num: true }, { titulo: "Frete US$/t", num: true }, { titulo: "Amostra" }],
+    indices.map((i) => [rotuloMes(p[i]), n(v("t", i)), n(v("fob", i)), n(v("cif", i)), n(v("frete", i)), pequena(i) ? "pequena" : ""]));
+}
+
+function desenharRocha(indices) {
+  const prod = dados.insumos.produtos.rocha, ref = prod.benchmark, p = periodos();
+  const rotulos = indices.map((i) => rotuloMes(p[i]));
+  const v = (serie, i) => noMesInsumos(serie, p[i]);
+  const pequena = (i) => pequenaInsumo(prod, p[i]);
+  const semPequena = (serie) => indices.map((i) => (pequena(i) ? null : v(serie, i)));
+  const corP = corGrupo("P"), corCif = cor("--cif"), corBm = cor("--texto");
+  const margem = { padding: { right: estreito() ? 8 : 92 } };
+  const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
+  legenda("legenda-rocha", [
+    { rotulo: "FOB Brasil (no embarque)", corItem: corP, tipo: "linha" },
+    { rotulo: "CIF Brasil (com frete e seguro)", corItem: corCif, tipo: "linha" },
+    { rotulo: `Banco Mundial: ${ref.serie}, ${ref.base} (${ref.comparacao})`, corItem: corBm, tipo: "tracejada" },
+  ]);
+  const frase = fraseRocha(indices), fraseT = fraseVolumeInsumo("rocha", indices);
+  texto("resumo-rocha", frase);
+  texto("resumo-rocha-t", fraseT);
+  document.getElementById("grafico-rocha").setAttribute("aria-label", `${prod.nome}: preço FOB e CIF do Brasil e benchmark do Banco Mundial (Pink Sheet), em US$ por tonelada, ${intervalo}. A tabela abaixo traz os valores. ${frase}`);
+  document.getElementById("grafico-rocha-t").setAttribute("aria-label", `${prod.nome}: toneladas importadas por mês, ${intervalo}. A tabela abaixo traz os valores. ${fraseT}`);
+  const dica = dicaExterna((pontos) => {
+    const i = indices[pontos[0].dataIndex];
+    const linhas = pontos.map((d) => ({ corSerie: d.dataset.borderColor, valor: porTonelada(d.raw), serie: d.dataset.label }));
+    const extras = [`Base: ${ref.base} (${ref.comparacao})`, `Importado: ${toneladas(v(prod.t, i))}`];
+    const usd = v(ref.spread_usd_t, i), s = v(ref.spread_pct, i);
+    if (!nulo(s)) extras.push(`Spread: ${comSinal(s, fmt1, "+")}%${nulo(usd) ? "" : ` (${sinalDe(usd, fmt0, "+")}US$ ${fmt0.format(Math.abs(usd))}/t)`}`);
+    if (pequena(i)) extras.push(`Amostra pequena (menos de ${fmt0.format(prod.corte_amostra_t)} t): FOB ${porTonelada(v(prod.fob, i))}, CIF ${porTonelada(v(prod.cif, i))}, fora das linhas`);
+    return { titulo: pontos[0].label, linhas, extras };
+  });
+  novoGrafico("grafico-rocha", {
+    type: "line",
+    data: {
+      labels: rotulos,
+      datasets: [
+        linhaInsumo("Banco Mundial", indices.map((i) => v(ref.bm, i)), corBm, "Pink Sheet", true),
+        linhaInsumo("CIF Brasil", semPequena(prod.cif), corCif, "CIF"),
+        linhaInsumo("FOB Brasil", semPequena(prod.fob), corP, "FOB"),
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: margem,
+      interaction: { mode: "index", intersect: false },
+      scales: eixosInsumos((x) => fmt0.format(x)),
+      plugins: { legend: { display: false }, rotulosFinais: { ativo: !estreito() }, marcos: { produtos: ["rocha"], lista: false }, tooltip: { enabled: false, external: dica } },
+    },
+    plugins: [pluginCruz, pluginRotulosFinais],
+  });
+  graficoToneladasInsumo("rocha", indices, margem);
+  const n = (x, f) => (nulo(x) ? "–" : comSinal(x, f).replace(MENOS, "-"));
+  tabela("tabela-rocha",
+    [{ titulo: "Mês" }, { titulo: "Toneladas", num: true }, { titulo: "FOB Brasil US$/t", num: true }, { titulo: "CIF Brasil US$/t", num: true },
+      { titulo: "Banco Mundial US$/t", num: true }, { titulo: "Spread US$/t", num: true }, { titulo: "Spread %", num: true }, { titulo: "Amostra" }],
+    indices.map((i) => [rotuloMes(p[i]), n(v(prod.t, i), fmt0), n(v(prod.fob, i), fmt0), n(v(prod.cif, i), fmt0), n(v(ref.bm, i), fmt1),
+      n(v(ref.spread_usd_t, i), fmt0), n(v(ref.spread_pct, i), fmt1), pequena(i) ? "pequena" : ""]));
+}
+
+function desenharCustoMap(indices) {
+  const b = dados.insumos, c = b.custo_map, p = periodos();
+  const rotulos = indices.map((i) => rotuloMes(p[i]));
+  const usavel = (i) => custoUsavel(p[i]);
+  const serie = (campo) => indices.map((i) => (usavel(i) ? custoMapNoMes(campo, p[i]) : null));
+  const corP = corGrupo("P"), corCusto = cor("--cif");
+  const margem = { padding: { right: estreito() ? 8 : 64 } };
+  const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
+  const nomes = { enxofre: b.produtos.enxofre.nome, rocha: b.produtos.rocha.nome };
+  const coefs = { enxofre: c.coef_enxofre, rocha: c.coef_rocha };
+  legenda("legenda-custo-map", [
+    { rotulo: `Custo de insumo: enxofre × ${fmtCoef.format(c.coef_enxofre)} + rocha × ${fmtCoef.format(c.coef_rocha)}`, corItem: corCusto, tipo: "area" },
+    { rotulo: `CIF do MAP (NCM ${c.ncms_map.join(", ")})`, corItem: corP, tipo: "linha" },
+  ]);
+  const frase = fraseCustoMap(indices), fraseR = fraseRazaoMap(indices);
+  texto("resumo-custo-map", frase);
+  texto("resumo-razao-map", fraseR);
+  document.getElementById("grafico-custo-map").setAttribute("aria-label", `Custo de insumo por tonelada de MAP (enxofre e rocha fosfática, no porto) e CIF do MAP, em US$ por tonelada, ${intervalo}. A tabela abaixo traz os valores. ${frase}`);
+  document.getElementById("grafico-razao-map").setAttribute("aria-label", `Custo de insumo ÷ CIF do MAP, em porcentagem, ${intervalo}, com a média dos meses do período tracejada. A tabela abaixo traz os valores. ${fraseR}`);
+  const custo = { ...linhaInsumo("Custo de insumo", serie("custo"), corCusto, "Insumo"), fill: "origin", backgroundColor: comAlfa(corCusto, 0.14) };
+  novoGrafico("grafico-custo-map", {
+    type: "line",
+    data: { labels: rotulos, datasets: [linhaInsumo("CIF do MAP", serie("cif_map"), corP, "MAP"), custo] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: margem,
+      interaction: { mode: "index", intersect: false },
+      scales: eixosInsumos((x) => fmt0.format(x)),
+      plugins: {
+        legend: { display: false },
+        rotulosFinais: { ativo: !estreito() },
+        marcos: { produtos: ["enxofre", "rocha", "map"], lista: false },
+        tooltip: {
+          enabled: false,
+          external: dicaExterna((pontos) => {
+            const periodo = p[indices[pontos[0].dataIndex]];
+            const linhas = pontos.map((d) => ({ corSerie: d.dataset.borderColor, valor: porTonelada(d.raw), serie: d.dataset.label }));
+            const partes = ["enxofre", "rocha"].map((k) => {
+              const cif = noMesInsumos(b.produtos[k].cif, periodo);
+              return `${nomes[k]}: ${porTonelada(cif)} × ${fmtCoef.format(coefs[k])} = ${porTonelada(nulo(cif) ? null : cif * coefs[k])}`;
+            });
+            return { titulo: pontos[0].label, linhas, extras: [...partes, `Custo ÷ CIF do MAP: ${pct(100 * custoMapNoMes("razao", periodo))}`] };
+          }),
+        },
+      },
+    },
+    plugins: [pluginCruz, pluginRotulosFinais],
+  });
+  const meses = indices.map((i) => p[i]).filter(custoUsavel);
+  const { media } = razoesMap(meses);
+  legenda("legenda-razao-map", [
+    { rotulo: "Custo de insumo ÷ CIF do MAP", corItem: corP, tipo: "linha" },
+    ...(meses.length > 1 ? [{ rotulo: "Média dos meses do período", tipo: "limiar" }] : []),
+  ]);
+  const razao = { ...linhaInsumo("Custo ÷ CIF do MAP", indices.map((i) => (usavel(i) ? 100 * custoMapNoMes("razao", p[i]) : null)), corP, null), fill: "origin", backgroundColor: comAlfa(corP, 0.1) };
+  novoGrafico("grafico-razao-map", {
+    type: "line",
+    data: { labels: rotulos, datasets: [razao] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: margem,
+      interaction: { mode: "index", intersect: false },
+      scales: eixosInsumos((x) => `${fmt0.format(x)}%`),
+      plugins: {
+        legend: { display: false },
+        limiar: { valor: meses.length > 1 ? media : null },
+        marcos: { produtos: ["enxofre", "rocha", "map"] },  // a linha "Marcos" dos dois gráficos do cartão
+        tooltip: {
+          enabled: false,
+          external: dicaExterna((pontos) => {
+            const periodo = p[indices[pontos[0].dataIndex]];
+            return {
+              titulo: pontos[0].label,
+              linhas: [{ corSerie: corP, valor: pct(pontos[0].raw), serie: "do CIF do MAP" }],
+              extras: [`Custo de insumo ${porTonelada(custoMapNoMes("custo", periodo))} · CIF do MAP ${porTonelada(custoMapNoMes("cif_map", periodo))}`,
+                ...(meses.length > 1 ? [`Média dos meses do período: ${pct(media)}`] : [])],
+            };
+          }),
+        },
+      },
+    },
+    plugins: [pluginCruz, pluginLimiar],
+  });
+  const n = (x) => (nulo(x) ? "–" : fmt0.format(x));
+  tabela("tabela-custo-map",
+    [{ titulo: "Mês" }, { titulo: `${nomes.enxofre} CIF US$/t`, num: true }, { titulo: `${nomes.rocha} CIF US$/t`, num: true },
+      { titulo: "Custo de insumo US$/t de MAP", num: true }, { titulo: "CIF do MAP US$/t", num: true }, { titulo: "Custo ÷ CIF do MAP", num: true }, { titulo: "Amostra" }],
+    indices.map((i) => {
+      const r = custoMapNoMes("razao", p[i]);
+      return [rotuloMes(p[i]), n(noMesInsumos(b.produtos.enxofre.cif, p[i])), n(noMesInsumos(b.produtos.rocha.cif, p[i])), n(custoMapNoMes("custo", p[i])),
+        n(custoMapNoMes("cif_map", p[i])), nulo(r) ? "–" : pct(100 * r), custoMapNoMes("amostra_pequena", p[i]) === true ? "pequena" : ""];
+    }));
+}
+
 function desenharHhi() {
   const anoDe = Number(estado.de.slice(0, 4)), anoAte = Number(estado.ate.slice(0, 4));
   const anos = dados.anual.anos.filter((a) => a >= anoDe && a <= anoAte);
@@ -2662,6 +3131,7 @@ function atualizar() {
   desenharNutrientes(indices);
   desenharTroca(indices);
   desenharBenchmark(indices);
+  desenharInsumos(indices);
   desenharHhi();
 }
 
