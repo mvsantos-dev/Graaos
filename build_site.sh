@@ -85,6 +85,15 @@ checar_json "$saida/dashboard.json" meta mensal anual origens urfs rotas mapa
 checar_json "$saida/boletim.json"
 checar_json "$saida/assets/mapa-pontos.json" grade paises
 
+# --- Conteúdo estático, páginas dos boletins e arquivos de indexação --------------------------
+# src/estatico (só biblioteca padrão) escreve no HTML o que dá para ler sem JavaScript, gera as
+# páginas boletim/AAAA-MM/ e os arquivos de indexação, sempre a partir do dashboard.json e do
+# boletim.json acima: nenhum número escrito à mão.
+command -v python3 > /dev/null 2>&1 || falhar "sem python3 para gerar o conteúdo estático (src/estatico)"
+opcoes_estatico=()
+[[ "$atualizado" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && opcoes_estatico=(--atualizado "$atualizado")
+( cd "$raiz" && python3 -m src.estatico "$saida" ${opcoes_estatico[@]+"${opcoes_estatico[@]}"} ) || falhar "src/estatico não gerou o conteúdo estático"
+
 echo "build_site.sh: site montado em $saida"
 for arquivo in index.html dashboard.json boletim.json assets/mapa-pontos.json; do
   printf '  %-24s %s bytes\n' "$arquivo" "$(wc -c < "$saida/$arquivo" | tr -d ' ')"

@@ -44,22 +44,21 @@ def test_wrangler_publica_a_pasta_do_build():
 
 
 def _repo_falso(tmp_path: Path, dashboard: str | None, index: bool = True) -> Path:
+    """Cópia do dashboard/ e do src/ (o gerador do conteúdo estático) fora de um repositório git."""
     raiz = tmp_path / "repo"
-    (raiz / "dashboard" / "assets").mkdir(parents=True)
+    raiz.mkdir()
     shutil.copy(SCRIPT, raiz / "build_site.sh")
-    if index:
-        (raiz / "dashboard" / "index.html").write_text(
-            '<meta name="atualizado" content=""><script>fetch("dashboard.json"); fetch("boletim.json")</script>', encoding="utf-8")
-    (raiz / "dashboard" / "assets" / "mapa-pontos.json").write_text('{"grade": [], "paises": []}', encoding="utf-8")
-    for nome in ("fluxos.js", "hero.js", "mapa-hero.js", "lista-espera.js", "radar.css"):
-        (raiz / "dashboard" / "assets" / nome).write_text("/* */", encoding="utf-8")
+    shutil.copytree(RAIZ / "dashboard", raiz / "dashboard", ignore=shutil.ignore_patterns("*.png", "*.gif"))
+    shutil.copytree(RAIZ / "src", raiz / "src", ignore=shutil.ignore_patterns("__pycache__"))
+    if not index:
+        (raiz / "dashboard" / "index.html").unlink()
     if dashboard is not None:
         (raiz / "data" / "processed").mkdir(parents=True)
         (raiz / "data" / "processed" / "dashboard.json").write_text(dashboard, encoding="utf-8")
     return raiz
 
 
-COMPLETO = json.dumps({k: {} for k in ("meta", "mensal", "anual", "origens", "urfs", "rotas", "mapa")})
+COMPLETO = (RAIZ / "data" / "processed" / "dashboard.json").read_text(encoding="utf-8")
 
 
 def test_repo_falso_completo_monta_sem_erro(tmp_path):
@@ -78,6 +77,7 @@ def test_repo_falso_completo_monta_sem_erro(tmp_path):
         (json.dumps({"meta": {}, "mensal": {}}), True, "sem as chaves"),
         (COMPLETO, False, "dashboard/index.html não existe"),
     ],
+    ids=["sem-dashboard", "json-invalido", "sem-chaves", "sem-index"],
 )
 def test_build_falha_sem_dados_validos(tmp_path, dashboard, index, mensagem):
     raiz = _repo_falso(tmp_path, dashboard, index=index)
