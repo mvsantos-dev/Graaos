@@ -3,7 +3,8 @@
 Fluxo:
 
 1. Monta um "pacote de fatos" só com dados já calculados (data/processed/dashboard.json e
-   troca_mensal.csv): chaves nomeadas, como troca_map_ultimo ou share_russia_k_ano, com
+   troca_mensal.csv; no site estático, o bloco "troca" do dashboard.json pelo troca_do_painel,
+   com o mesmo resultado): chaves nomeadas, como troca_map_ultimo ou share_russia_k_ano, com
    valores já formatados em pt-BR e uma descrição de cada uma.
 2. Pede à IA um JSON com título, lead e 4 a 6 parágrafos que citam números SÓ por
    marcadores {chave}. Número literal é proibido.
@@ -15,7 +16,8 @@ Fluxo:
    sempre "no porto" e nunca como preço ao produtor; texto numa linha só, sem Markdown, HTML ou
    link; sem os termos de uma lista fixa de recomendação e tom alarmista; e tamanho máximo. Se
    reprovar, tenta mais uma vez com os erros no prompt; se reprovar de novo, falha sem publicar.
-4. Troca os marcadores pelos valores e grava boletins/AAAA-MM.md e boletins/latest.json.
+4. Troca os marcadores pelos valores e grava boletins/AAAA-MM.md, boletins/AAAA-MM.json (o texto
+   do mês, lido pela página boletim/AAAA-MM/ do site) e boletins/latest.json.
 
 --mock usa uma resposta fixa de exemplo, sem chamar nenhuma API, e grava em boletins/mock/
 (fora do Git). Só biblioteca padrão: o job que recebe a chave não instala dependências.
@@ -264,6 +266,29 @@ def carregar(dados_dir: Path = config.PROCESSED_DIR) -> tuple[dict, list[dict]]:
     return painel, troca
 
 
+def troca_do_painel(painel: dict) -> list[dict]:
+    """Linhas no formato do troca_mensal.csv montadas só com o bloco "troca" do dashboard.json (6
+    casas), para quem não tem o CSV (o site estático, no build). Sem valor nem toneladas: a
+    relação, o CIF e a soja já vêm com as 6 casas que o "exatos" do CSV recalcula."""
+    tr = painel.get("troca")
+    if not tr:
+        return []
+    texto = lambda v: "" if v is None else repr(float(v))  # noqa: E731
+    linhas = []
+    for j, periodo in enumerate(tr["periodos"]):
+        for prod, d in tr["produtos"].items():
+            razao = d["razao"][j]
+            linhas.append({
+                "periodo": periodo,
+                "produto": prod,
+                "preco_cif_fert_usd_t": texto(d["cif"][j]),
+                "preco_fob_soja_usd_t": texto(tr["soja_fob"][j]),
+                "t_soja_por_t": texto(razao),
+                "sacas_soja_por_t": "" if razao is None else repr(float(razao) * 1000 / tr["kg_saca"]),  # da razão arredondada, como o dashboard
+            })
+    return linhas
+
+
 def montar_fatos(painel: dict, troca: list[dict], mes: str | None = None) -> Fatos:
     """Pacote de fatos do mês (padrão: o último com dados) e do acumulado do ano."""
     mensal, anual = painel["mensal"], painel["anual"]
@@ -437,7 +462,9 @@ def _fatos_troca(f: Fatos, troca: list[dict], mes: str) -> None:
             "sacas_soja_por_t": repr(razao * 1000 / 60),  # como o dashboard: da razão já arredondada
         }
 
-    troca = [exatos(r) if r["t_soja_por_t"] not in ("", None) else r for r in troca]
+    # Linhas do troca_do_painel (sem valor nem toneladas) já trazem as 6 casas.
+    tem_valor = lambda r: all(r.get(c) not in ("", None) for c in ("t_soja_por_t", "vl_cif_fert", "toneladas_fert"))  # noqa: E731
+    troca = [exatos(r) if tem_valor(r) else r for r in troca]
 
     soja_registrada = False
     for prod, nome in PRODUTOS_TROCA.items():
@@ -1787,7 +1814,8 @@ def _mes_do_latest(latest: Path) -> str | None:
 
 
 def escrever(conteudo: dict, fatos: Fatos, saida: Path, provedor: str, mock: bool, agora: datetime | None = None) -> tuple[Path, Path | None]:
-    """Grava AAAA-MM.md e, se o mês não for anterior ao do latest.json atual, o latest.json."""
+    """Grava AAAA-MM.md, AAAA-MM.json (o mesmo conteúdo do latest.json, para a página do mês no
+    site) e, se o mês não for anterior ao do latest.json atual, o latest.json."""
     agora = agora or datetime.now(timezone.utc)
     mes = fatos.periodo
     arquivo = Path(saida) / f"{mes}.md"
@@ -1808,12 +1836,14 @@ def escrever(conteudo: dict, fatos: Fatos, saida: Path, provedor: str, mock: boo
     if conteudo.get("nota"):
         ultimo["nota"] = conteudo["nota"]
     _gravar(arquivo, markdown(conteudo, meta))
+    json_do_mes = json.dumps(ultimo, ensure_ascii=False, indent=1) + "\n"
+    _gravar(Path(saida) / f"{mes}.json", json_do_mes)  # texto de cada mês para boletim/AAAA-MM/ (src/estatico)
     latest = Path(saida) / "latest.json"
     atual = _mes_do_latest(latest)
     if atual is not None and atual > mes:  # preencher um mês antigo não tira o mais recente do card
         log.info("latest.json continua em %s, mais recente que %s.", atual, mes)
         return arquivo, None
-    _gravar(latest, json.dumps(ultimo, ensure_ascii=False, indent=1) + "\n")
+    _gravar(latest, json_do_mes)
     return arquivo, latest
 
 

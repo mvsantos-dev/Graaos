@@ -1,0 +1,16 @@
+{
+  "name": "Graaos · Fertilizantes",
+  "short_name": "Graaos",
+  "description": "Importações de fertilizantes no Brasil (N, P, K e NPK): origens, portos, preços e relação de troca com a soja no porto. Dados públicos e código aberto.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "browser",
+  "theme_color": "#2B36D9",
+  "background_color": "#f4f4fb",
+  "icons": [
+    { "src": "favicon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

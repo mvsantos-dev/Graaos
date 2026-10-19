@@ -574,6 +574,18 @@ def test_mes_antigo_nao_tira_o_mais_recente_do_latest(tmp_path, ultimo_mes):
     assert json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))["mes"] == ultimo_mes
 
 
+def test_texto_de_cada_mes_fica_em_aaaa_mm_json(tmp_path, ultimo_mes):
+    """O site estático (boletim/AAAA-MM/) lê o texto de cada mês, que o latest.json só guarda do último."""
+    assert boletim.main(["--mock", "--saida", str(tmp_path)]) == 0
+    latest = (tmp_path / "latest.json").read_text(encoding="utf-8")
+    assert (tmp_path / f"{ultimo_mes}.json").read_text(encoding="utf-8") == latest
+    assert boletim.main(["--mock", "--mes", "2024-03", "--saida", str(tmp_path)]) == 0
+    antigo = json.loads((tmp_path / "2024-03.json").read_text(encoding="utf-8"))
+    assert antigo["mes"] == "2024-03" and antigo["arquivo"] == "boletins/2024-03.md" and antigo["paragrafos"]
+    assert (tmp_path / "latest.json").read_text(encoding="utf-8") == latest  # o latest continua no último mês
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted(["2024-03.md", "2024-03.json", f"{ultimo_mes}.md", f"{ultimo_mes}.json", "latest.json"])
+
+
 def test_links_apontam_para_o_repositorio_em_uso(monkeypatch):
     monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     assert boletim._enderecos() == (boletim.REPOSITORIO, boletim.DASHBOARD)
@@ -1037,6 +1049,18 @@ def test_troca_no_boletim_igual_ao_dashboard():
     for prod, d in tr["produtos"].items():  # a média é da série inteira, a mesma do último mês
         if d["razao"][ultimo] is not None:
             assert f[f"troca_{prod}_media"]["valor"] == boletim.fmt_razao(d["media"])
+
+
+def test_troca_do_dashboard_json_da_o_mesmo_pacote_que_o_csv():
+    """O site estático só tem o dashboard.json: as linhas de troca montadas do bloco "troca" dão o
+    mesmo pacote de fatos que o troca_mensal.csv, em todos os meses dos dados."""
+    painel, do_csv = boletim.carregar(config.PROCESSED_DIR)
+    do_painel = boletim.troca_do_painel(painel)
+    assert do_csv and len(do_painel) == len(do_csv)
+    assert not any("vl_cif_fert" in r for r in do_painel)
+    for mes in painel["mensal"]["periodos"]:
+        assert boletim.montar_fatos(painel, do_csv, mes).valores() == boletim.montar_fatos(painel, do_painel, mes).valores(), mes
+    assert boletim.troca_do_painel({k: v for k, v in painel.items() if k != "troca"}) == []
 
 
 def test_posicao_pela_media_historica_usa_o_valor_arredondado():

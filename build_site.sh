@@ -8,6 +8,9 @@
 #                            formulário da lista de espera, que só fala com a Edge Function do Supabase)
 #   dashboard.json        <- data/processed/dashboard.json (todos os gráficos e o mapa de fluxos)
 #   boletim.json          <- boletins/latest.json ({} enquanto não houver boletim)
+#   favicon-*.png, apple-touch-icon.png, site.webmanifest <- dashboard/ (ícones e manifest)
+#   robots.txt, sitemap.xml, 404.html, llms.txt, _headers <- gerados pelo src/estatico (cabecalho.py),
+#                            que também põe ?v=<hash> em toda referência a assets/ (cache longo no _headers)
 # Sem segredos e sem rede. Termina com erro (exit 1) se faltar o index.html ou algum dado, ou
 # se algum JSON for inválido: melhor um deploy que falha do que um site no ar sem dados.
 set -euo pipefail
@@ -43,6 +46,14 @@ if [[ "$atualizado" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
   grep -q "name=\"atualizado\" content=\"${atualizado}\"" "$saida/index.html" || falhar "não consegui gravar a data de atualização no index.html"
 else
   echo "build_site.sh: aviso: sem histórico do git, o rodapé fica sem a data de atualização" >&2
+fi
+# Num clone raso, o commit achado pode ser só a borda do histórico baixado: a data é a dele, não a da
+# última mudança dos dados (e vai para o rodapé, o sitemap e o JSON-LD). Só avisa: o build não usa a rede.
+commit_dados="$(git -C "$raiz" log -1 --format=%H -- data/processed/dashboard.json 2>/dev/null || true)"
+borda="$(git -C "$raiz" rev-parse --git-path shallow 2>/dev/null || true)"
+case "$borda" in /*) ;; ?*) borda="$raiz/$borda" ;; esac
+if [[ -n "$commit_dados" && -f "$borda" ]] && grep -qx "$commit_dados" "$borda"; then
+  echo "build_site.sh: aviso: clone raso do git: $atualizado é a data do commit mais antigo baixado, não necessariamente a da última atualização dos dados (rode git fetch --unshallow antes do build)" >&2
 fi
 
 # --- Verificações finais -------------------------------------------------------------------
@@ -84,6 +95,36 @@ checar_json() { # arquivo [chaves obrigatórias...]
 checar_json "$saida/dashboard.json" meta mensal anual origens urfs rotas mapa
 checar_json "$saida/boletim.json"
 checar_json "$saida/assets/mapa-pontos.json" grade paises
+
+# --- Conteúdo estático, páginas dos boletins e arquivos de indexação --------------------------
+# src/estatico (só biblioteca padrão) escreve no HTML o que dá para ler sem JavaScript, gera as
+# páginas boletim/AAAA-MM/ e os arquivos de indexação, sempre a partir do dashboard.json e do
+# boletim.json acima: nenhum número escrito à mão.
+command -v python3 > /dev/null 2>&1 || falhar "sem python3 para gerar o conteúdo estático (src/estatico)"
+opcoes_estatico=()
+[[ "$atualizado" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && opcoes_estatico=(--atualizado "$atualizado")
+( cd "$raiz" && python3 -m src.estatico "$saida" ${opcoes_estatico[@]+"${opcoes_estatico[@]}"} ) || falhar "src/estatico não gerou o conteúdo estático"
+
+# Arquivos de indexação e ícones (o src/estatico já confere a versão ?v= de cada referência a assets/)
+for arquivo in robots.txt sitemap.xml 404.html llms.txt _headers site.webmanifest favicon-32.png favicon-192.png favicon-512.png apple-touch-icon.png; do
+  [[ -s "$saida/$arquivo" ]] || falhar "falta $arquivo em $saida"
+done
+checar_json "$saida/site.webmanifest" name icons start_url
+validar_indexacao='
+import json, re, sys, xml.etree.ElementTree as ET
+site = sys.argv[1]
+ET.parse(site + "/sitemap.xml")
+html = open(site + "/index.html", encoding="utf-8").read()
+blocos = re.findall(r"<script type=\"application/ld\+json\">(.*?)</script>", html, re.S)
+if len(blocos) != 1:
+    sys.exit(f"esperava um JSON-LD no index.html, achei {len(blocos)}")
+tipos = {item.get("@type") for item in json.loads(blocos[0])["@graph"]}
+if not {"WebSite", "Organization", "Dataset"} <= tipos:
+    sys.exit("JSON-LD sem WebSite, Organization ou Dataset")
+if "Sitemap: " not in open(site + "/robots.txt", encoding="utf-8").read():
+    sys.exit("robots.txt sem o sitemap")
+'
+saida_erro="$(python3 -c "$validar_indexacao" "$saida" 2>&1)" || falhar "indexação inválida: ${saida_erro##*$'\n'}"
 
 echo "build_site.sh: site montado em $saida"
 for arquivo in index.html dashboard.json boletim.json assets/mapa-pontos.json; do

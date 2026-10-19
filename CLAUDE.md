@@ -124,19 +124,71 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
 - Fase 3: `dashboard/index.html` é um HTML único (Chart.js 4.5.1 do jsDelivr, com SRI) que
   lê `dashboard.json`. Para ver localmente: `python -m http.server` na raiz e abrir
   `/dashboard/`. O deploy é feito pelo `.github/workflows/pages.yml` (push na main que mude
-  `dashboard/`, o `dashboard.json` ou o `boletins/latest.json`, ou manual), sem segredos. Pré-requisito: Settings →
+  `dashboard/`, o `dashboard.json`, os `boletins/*.json`, o `build_site.sh`, o `src/estatico/`, o
+  `src/boletim.py`, o `src/config.py` ou o `src/llm.py`, ou manual), sem segredos. Pré-requisito: Settings →
   Pages → Source: "GitHub Actions". O espelho do Pages fica em https://mvsantos-dev.github.io/Graaos/:
   o endereço segue o nome do usuário e o do repositório, que se chama `Graaos`, e o caminho
   diferencia maiúsculas (`/graaos/` dá 404); o endereço antigo não redireciona.
   O site é montado SÓ pelo `build_site.sh` (Pages em `_site`; Cloudflare em `site/`, publicado pelo
   `wrangler.jsonc` com `"assets": {"directory": "./site"}`): `dashboard/` mais `dashboard.json` e
-  `boletim.json` na raiz, que é onde o `index.html` os busca. O script termina com exit 1 se faltar
-  o `index.html`, um dado ou um asset, ou se um JSON for inválido; não relaxar essas verificações
-  nem montar o site de outro jeito em outro lugar. Sem segredos no `wrangler.jsonc` (nada de
+  `boletim.json` na raiz, que é onde o `index.html` os busca, e depois roda o `src/estatico` (item
+  abaixo). O script termina com exit 1 se faltar o `index.html`, um dado, um asset, um ícone ou um
+  arquivo de indexação, se um JSON for inválido ou se uma referência a `assets/` ficar sem o `?v=`
+  certo; não relaxar essas verificações nem montar o site de outro jeito em outro lugar. O
+  `wrangler.jsonc` tem `"not_found_handling": "404-page"` (o `404.html` do build). Sem segredos no `wrangler.jsonc` (nada de
   `account_id` nem `vars`). O `"name"` do `wrangler.jsonc` continua `radar-fertilizantes-br`, o
   nome de antes do rebranding para Graaos. O Workers Builds usa o nome do Worker conectado ao
   repositório (`graaos`, no painel), mas com `"graaos"` no arquivo o build de produção falhou
   (fe7cd4b, revertido): não trocar o nome sem conferir no painel da Cloudflare.
+- Conteúdo estático e indexação (`src/estatico`, rodado pelo `build_site.sh`, só biblioteca
+  padrão, Python 3.10+; Cloudflare usa 3.13): tudo sai do `dashboard.json`, do `boletim.json` e dos
+  `boletins/AAAA-MM.json`, nunca número escrito à mão. Etapas, nesta ordem: `resumo` e
+  `resumo_precos` (card Resumo, `#destaques-kpis` com as 3 maiores origens e a troca no porto, e a
+  frase de cada gráfico num `<p class="resumo-grafico" id="resumo-…">` logo depois da `.nota` do
+  cartão, repetida no fim do aria-label do canvas), `tabelas` (as de "Ver tabela", o frete por
+  rota e a do mapa, mais as notas dos cartões; só escreve o que ainda está vazio ou com o texto
+  original), `boletins` e `cabecalho` (por último). Tudo na visão padrão (página sem hash: todos os
+  grupos, período inteiro, KCl no benchmark, US$ nos nutrientes; no mapa, o último ano completo).
+  O script tem as funções gêmeas (`textoDestaques`, `frase*`, `frasesBenchmark`) e redesenha por
+  cima com o filtro. `formato.py` e `dados.py` espelham os formatadores e as contas do script
+  (somas em laço, na ordem do script: o `sum()` do Python 3.12+ compensa o arredondamento). Mudou
+  uma tabela, frase, nota ou formatador no script, mude o gêmeo: os e2e
+  `tests/e2e/test_estatico_*.py` comparam a página sem e com JavaScript e reprovam a diferença.
+  Toda frase termina com as fontes que usa; troca e custo por nutriente dizem "no porto" e "Não é
+  o preço ao produtor."; o spread vai com o preço do Brasil da base e com "Não é ágio: o benchmark
+  é de outro lugar e de outro momento de contrato."; meses de spread acima de zero se contam pelo
+  número arredondado.
+  Páginas dos boletins (`boletins.py`, `boletins_frases.py`, estilo em `assets/boletim.css`, nunca
+  no radar.css): `boletim/AAAA-MM/` para cada mês do dashboard.json e o arquivo `boletim/`, sem
+  JavaScript, com title "Importação de fertilizantes em <mês> de <ano> | Graaos", description de
+  até 155 caracteres, canonical, Open Graph e JSON-LD (`@id` #website e #organization da home). As
+  frases são modelos com o pacote de fatos (`montar_fatos` com a troca do `troca_do_painel`, que dá
+  o mesmo pacote que o troca_mensal.csv em todos os meses; há teste) e seguem as regras de tom do
+  boletim; os cartões vêm do `dados.kpis`. Origens, portos e rotas só no último mês dos dados e nos
+  dezembros (os blocos anuais cobrem o ano inteiro dos dados). Texto da IA só de
+  `boletins/AAAA-MM.json` (ou do `latest.json` do mesmo mês), sempre escapado; o do `--mock` nunca
+  entra, e um AAAA-MM.json inválido faz o build falhar. A home liga o último mês e o arquivo no
+  `#link-boletim-pagina`.
+  `cabecalho.py`: JSON-LD (`WebSite`, `Organization` com o logo `favicon-512.png`, `Dataset` com
+  período, licença CC BY 4.0, variáveis, downloads dos CSV e Parquet de `data/` que estão no Git,
+  fontes e `dateModified`), `robots.txt`, `sitemap.xml` (de `ctx.paginas`; página inexistente
+  derruba o build), `404.html` (CSS inline, links absolutos, noindex, sem JS), `llms.txt` e
+  `_headers` (um ano immutable em `/assets/*`; páginas e JSON com `max-age=0, must-revalidate`;
+  ícones um dia; regras sem sobreposição, porque a Cloudflare junta valores repetidos com vírgula).
+  O `cabecalho_versao.py` põe `?v=<10 hex do sha256>` em toda referência a `assets/` (HTML,
+  `url()` do CSS e strings "assets/…" do JS) e confere tudo: no JS, escrever sempre o caminho
+  inteiro numa string (caminho montado no código derruba o build). Head: title até 60 caracteres e
+  description até 155, sem números; ícones PNG (32, 192, 512 e o apple-touch de 180, com fundo
+  branco) em `dashboard/`, tirados do favicon SVG, que continua; `site.webmanifest`. Preload só
+  das fontes da primeira tela (Inter Tight 300 e 400 e JetBrains Mono 400; a 600 com
+  `media="(min-width: 821px)"`, onde a marca aparece), com a mesma URL do `@font-face` (o e2e
+  acusa preload sem uso e fonte baixada duas vezes). A data de atualização (rodapé, `lastmod` e
+  `dateModified`) vem do git log do `data/processed/dashboard.json`; num clone raso, como o do
+  Workers Builds da Cloudflare, ela é a do último commit, e o `build_site.sh` avisa.
+  Ao recarregar (ou voltar pelo histórico), a página volta ao elemento com id que estava no topo da
+  tela (`history.scrollRestoration = "manual"`, `lugarDaLeitura`/`voltarAoLugar`), com o HTML
+  estático e de novo depois do primeiro desenho; rolar antes disso cancela a volta. O aviso de erro
+  (Chart.js ou dados que não carregam) vai no topo do conteúdo, sem apagá-lo.
 - Fase 4: `.github/workflows/atualizacao.yml` roda nos dias 1 a 15 de cada mês. Se o mês
   anterior já está gravado (`--ultimo-gravado`), encerra sem chamar nenhuma fonte; senão faz a
   ingestão incremental das quatro séries (Pink Sheet e PTAX primeiro; o Comex Stat só até o
@@ -157,7 +209,8 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
 - Fase 5: `src/llm.py` (provedores: `RADAR_LLM_PROVIDER` = anthropic, padrão com
   `claude-sonnet-5-5`; openai, qualquer API compatível; ollama, local) e `src/boletim.py`
   (pacote de fatos com valores formatados em pt-BR → IA escreve só com marcadores `{chave}` →
-  validação igual para todos os provedores → `boletins/AAAA-MM.md` e `latest.json`). Os dois
+  validação igual para todos os provedores → `boletins/AAAA-MM.md`, `boletins/AAAA-MM.json`, o
+  mesmo conteúdo do `latest.json` guardado para a página do mês no site, e `latest.json`). Os dois
   usam SÓ a biblioteca padrão: o job `gerar-boletim` é o único com o secret (environment
   `boletim-ia`) e não instala pacotes. A direção NUNCA é escrita pela IA: entra só pelos
   marcadores `_sentido`/`_posicao`, colados à própria variação. Nunca relaxar a validação
@@ -243,8 +296,14 @@ Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
   entram com os `.kpi`, termos, legendas e chips em cascata.
 - Gráficos (Chart.js, `novoGrafico` no script principal): cada um se desenha ao aparecer na tela
   pela primeira vez (`IntersectionObserver`; `data-entrada` = "pendente" → "feita"): linhas ponto
-  a ponto, da esquerda para a direita, e barras em sequência. Fora da tela, o gráfico é montado
-  sem animação. Depois de visto, filtro, período e tema atualizam o MESMO gráfico no lugar
+  a ponto, da esquerda para a direita, e barras em sequência. Longe da tela, o gráfico nem é
+  montado: `novoGrafico` guarda a configuração mais recente e o Chart.js o monta, sem animação,
+  quando o canvas chega a uma tela de distância (`IntersectionObserver` com `rootMargin` de 100%),
+  no próprio evento de rolagem num salto (`montarNoSalto`), no quadro seguinte se ele já está na
+  tela ao ganhar a configuração e, todos, no `beforeprint`; enquanto espera, o canvas ocupa a caixa
+  inteira (width e height 100% inline). Nunca voltar a montar todos os gráficos na carga. O
+  `dashboard.json` só é buscado depois da primeira pintura (`depoisDaPrimeiraPintura`: a entrada
+  "paint", com prazo de 1 s). Depois de visto, filtro, período e tema atualizam o MESMO gráfico no lugar
   (`chart.update()`, valores deslizando), sem destruir e recriar. Números dos cartões
   (`valorAnimado`, chave estável por cartão) contam do valor antigo até o novo e, na primeira
   aparição (`contarAoAparecer`), a partir de zero. Sem movimento, nada disso anima. No celular,
