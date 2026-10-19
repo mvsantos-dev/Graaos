@@ -30,7 +30,8 @@ Toda janela de comparação usa só meses válidos. Regras (números = padrões 
   linear) dos meses válidos anteriores, com pelo menos 36 deles; forte acima do percentil 97,5.
   Válido aqui = fertilizante válido e soja exportada com o volume mínimo no mês.
 - ritmo_importacao: toneladas do mês contra as do mesmo mês do ano anterior, que precisa ter o
-  volume mínimo; ±25%, forte ±50%. Mês sem importação conta como zero.
+  volume mínimo; ±25%, forte ±50%. Mês sem importação (zero t) conta como zero; mês sem dado
+  (null: fora do período ingerido da série, como os insumos ainda não baixados) não entra.
 
 A troca é "no porto", não o preço ao produtor, e é US$/US$ (não existe troca em reais). A Pink
 Sheet é uma referência de outro lugar e de outro momento de contrato, não um preço do Brasil.
@@ -406,7 +407,7 @@ class _Calculo:
         if s.pink is None or j is None:
             return None
         b0, b1 = s.pink[j], s.pink[i]
-        if not (_num(b0) and _num(b1)) or b0 <= 0:
+        if not (_num(b0) and _num(b1)) or b0 <= 0 or b1 <= 0:
             return None
         if any(s.pink_base[k] != s.pink_base[i] for k in range(j, i)):
             return None  # troca de base da série da Pink Sheet dentro do intervalo
@@ -448,9 +449,11 @@ class _Calculo:
     def ritmo_importacao(self, i: int) -> dict | None:
         lim, s = self.lim["ritmo_importacao"], self.s
         j = self.antes(i, 12)
-        if j is None or not _num(s.t[j]) or s.t[j] < s.volume_min or s.t[j] <= 0:
+        # null não é zero: o bloco "insumos" deixa vazio o mês fora do período ingerido, e um
+        # data/raw_insumos atrasado não pode virar "sem importação no mês"
+        if j is None or not _num(s.t[i]) or not _num(s.t[j]) or s.t[j] < s.volume_min or s.t[j] <= 0:
             return None
-        atual, base = int(round(s.t[i])) if _num(s.t[i]) else 0, int(round(s.t[j]))
+        atual, base = int(round(s.t[i])), int(round(s.t[j]))
         var = _pct(atual, base)
         if abs(_exibido(var)) < lim["limite_pct"]:
             return None

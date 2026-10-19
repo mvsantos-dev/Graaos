@@ -131,8 +131,10 @@ SINAIS_JSON = DADOS_DIR / "sinais.json"
 # regra: o mês que não passa fica fora da conta.
 SINAIS_VOLUME_MIN_T = 20_000
 # Enxofre e rocha chegam em navios graneleiros maiores, poucas cargas por mês: limite próprio,
-# escolhido pela distribuição mensal de data/raw_insumos (2015-01 a 2026-09). Abaixo de 40 mil t
-# (cerca de um navio) só ficaram os meses mais raros da série, e neles o preço destoou dos vizinhos.
+# escolhido pela distribuição mensal de data/raw_insumos (2015-01 a 2026-09), em que o 5º
+# percentil dos dois fica perto de 60 mil t. Abaixo de 40 mil t (cerca de uma carga) o mês é raro e
+# o preço é o de um navio só, que pode destoar dos vizinhos (como a rocha em 2025-06). Vale junto
+# com a amostra pequena do bloco "insumos" (INSUMOS_CORTE_AMOSTRA_T).
 SINAIS_VOLUME_MIN_T_PRODUTO = {"enxofre": 40_000, "rocha": 40_000}
 # Alta ou queda contra a média: CIF do mês ÷ média simples do CIF dos 12 meses anteriores que
 # passam no volume mínimo, com pelo menos 9 deles na janela.

@@ -353,19 +353,30 @@ def test_ritmo_de_importacao():
     t = lista(100_000, {12: 130_000, 13: 40_000, 14: 0, 15: None, 16: 30}, 26)
     d = dash(n=26, t={"ureia": t, "kcl": lista(100_000, {0: 10_000}, 26)})
     r = {s["mes"]: s for s in achar(d, "ureia", "ritmo_importacao")}
+    # 2016-04 (null: mês sem dado) não é "sem importação", nem como mês atual nem como base (2017-04)
     assert [(m, s["direcao"], s["nivel"]) for m, s in r.items()] == [
         ("2016-01", "alta", "atencao"), ("2016-02", "queda", "forte"), ("2016-03", "queda", "forte"),
-        ("2016-04", "queda", "forte"), ("2016-05", "queda", "forte"), ("2017-02", "alta", "forte"),
+        ("2016-05", "queda", "forte"), ("2017-02", "alta", "forte"),
     ]
     assert r["2016-01"]["comparacao"] == {"base": "mesmo_mes_ano_anterior", "mes": "2015-01", "valor": 100_000, "variacao_pct": 30.0}
     assert (r["2016-01"]["metrica"], r["2016-01"]["unidade"], r["2016-01"]["valor"]) == ("t", "t", 130_000)
     assert r["2016-01"]["frase"] == "Ureia: 130 mil t importadas, 30% acima de jan/2015"
     assert r["2016-02"]["frase"] == "Ureia: 40 mil t importadas, 60% abaixo de fev/2015"
-    assert r["2016-03"]["frase"] == r["2016-04"]["frase"].replace("abr", "mar") == "Ureia: sem importação no mês, contra 100 mil t em mar/2015"
+    assert r["2016-03"]["frase"] == "Ureia: sem importação no mês, contra 100 mil t em mar/2015"
     assert r["2016-05"]["frase"] == "Ureia: só 30 t importadas, contra 100 mil t em mai/2015"
     assert "2017-01" not in r  # 100 mil contra 130 mil: −23%
     # base sem o volume mínimo: sem comparação
     assert achar(d, "kcl", "ritmo_importacao") == []
+
+
+def test_insumos_sem_o_ultimo_mes_ingerido_nao_disparam():
+    # data/raw_insumos atrasado: o bloco "insumos" deixa o mês vazio (null), não zero
+    vazio = {"enxofre": lista(150_000, {25: None}, 26), "rocha": lista(150_000, {25: None}, 26)}
+    d = dash(n=26, t=vazio, cif={"enxofre": lista(150.0, {25: None}, 26), "rocha": lista(100.0, {25: None}, 26)})
+    assert achar(d, mes="2017-02") == []
+    # zero de verdade (mês ingerido sem importação) continua sendo sinal
+    d = dash(n=26, t={"enxofre": lista(150_000, {25: 0}, 26)}, cif={"enxofre": lista(150.0, {25: None}, 26)})
+    assert [s["frase"] for s in achar(d, mes="2017-02")] == ["Enxofre: sem importação no mês, contra 150 mil t em fev/2016"]
 
 
 # --- Sem olhar o futuro, ordem, formato e determinismo -------------------------------------------
