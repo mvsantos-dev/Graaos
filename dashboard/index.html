@@ -2721,9 +2721,9 @@ function notasInsumos(indices) {
   const enx = b.produtos.enxofre, rocha = b.produtos.rocha, ref = rocha.benchmark;
   const descricao = (prod) => prod.descricao.charAt(0).toUpperCase() + prod.descricao.slice(1);  // "Enxofre a granel ... (NCM 2503)"
   return {
-    "nota-enxofre": `${descricao(enx)} · US$ por tonelada e toneladas · ${periodo} · meses com menos de ${fmt0.format(enx.corte_amostra_t)} t ficam fora das linhas de preço (na tabela, "pequena")`,
-    "nota-rocha": `${descricao(rocha)} · benchmark: ${ref.serie}, ${ref.base}, Banco Mundial · ${periodo} · meses com menos de ${fmt0.format(rocha.corte_amostra_t)} t ficam fora da comparação (na tabela, "pequena")`,
-    "nota-custo-map": `Custo de insumo = CIF do enxofre × ${fmtCoef.format(c.coef_enxofre)} + CIF da rocha fosfática × ${fmtCoef.format(c.coef_rocha)}, em US$ por tonelada de MAP · CIF do MAP: NCM ${c.ncms_map.join(", ")} · ${periodo} · o mês com amostra pequena de um dos três fica fora dos gráficos`,
+    "nota-enxofre": `${descricao(enx)} · US$ por tonelada e toneladas · ${periodo} · meses com menos de ${fmt0.format(enx.corte_amostra_t)} t ficam fora das linhas de preço (trecho tracejado; na tabela, "pequena")`,
+    "nota-rocha": `${descricao(rocha)} · benchmark: ${ref.serie}, ${ref.base}, Banco Mundial · ${periodo} · meses com menos de ${fmt0.format(rocha.corte_amostra_t)} t ficam fora da comparação (trecho tracejado; na tabela, "pequena")`,
+    "nota-custo-map": `Custo de insumo = CIF do enxofre × ${fmtCoef.format(c.coef_enxofre)} + CIF da rocha fosfática × ${fmtCoef.format(c.coef_rocha)}, em US$ por tonelada de MAP · CIF do MAP: NCM ${c.ncms_map.join(", ")} · ${periodo} · o mês com amostra pequena de um dos três fica fora da conta (trecho tracejado nos gráficos)`,
     "metodo-insumos": `Insumos do fósforo (enxofre e rocha fosfática importados): ${b.notas.join(" ")}`,
   };
 }
@@ -2739,10 +2739,18 @@ function eixosInsumos(formatarY) {
 function linhaInsumo(label, data, corLinha, rotuloFinal, tracejado = false) {
   // mês entre dois sem linha (amostra pequena ou borda do período) vira um ponto
   const isolado = (k) => !nulo(data[k]) && nulo(data[k - 1]) && nulo(data[k + 1]);
+  // mês sem preço (amostra pequena) no meio da série: a linha passa por cima, tracejada e mais
+  // clara, sem preenchimento embaixo; o mês não ganha ponto nem valor na dica
+  const lacuna = (s) => s.p0.skip || s.p1.skip;
   return {
     label, data, rotuloFinal, borderColor: corLinha, backgroundColor: corLinha, borderWidth: 2, borderDash: tracejado ? [6, 4] : [],
     pointRadius: (c) => (isolado(c.dataIndex) ? 3 : 0),
-    pointHoverRadius: 4, pointHoverBorderWidth: 2, pointHoverBorderColor: cor("--superficie"), tension: 0, spanGaps: false,
+    pointHoverRadius: 4, pointHoverBorderWidth: 2, pointHoverBorderColor: cor("--superficie"), tension: 0, spanGaps: true,
+    segment: {
+      borderDash: (s) => (lacuna(s) ? [3, 4] : undefined),
+      borderColor: (s) => (lacuna(s) ? comAlfa(corLinha, 0.55) : undefined),
+      backgroundColor: (s) => (lacuna(s) ? "transparent" : undefined),
+    },
   };
 }
 function graficoToneladasInsumo(chave, indices, margem) {
