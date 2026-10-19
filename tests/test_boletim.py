@@ -598,7 +598,8 @@ def test_mock_traz_o_paragrafo_de_sinais_sem_mudar_o_texto_da_ia(tmp_path, ultim
     latest = json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))
     md = (tmp_path / f"{ultimo_mes}.md").read_text(encoding="utf-8")
     painel, _ = boletim.carregar(config.PROCESSED_DIR)
-    esperado = boletim.sinais_do_boletim(painel, ultimo_mes)
+    # o main usa o endereço do site em uso (no GitHub Actions, o do Pages do repositório)
+    esperado = boletim.sinais_do_boletim(painel, ultimo_mes, boletim._enderecos()[1])
     assert latest["sinais"] == esperado
     # os mesmos sinais do data/sinais.json do mês, na ordem dos cards do site
     assert [s["id"] for s in esperado["itens"]] == [s["id"] for s in ES.ordenar(sinais.sinais_do_mes(sinais.ler(), ultimo_mes))]
@@ -666,7 +667,7 @@ def test_mes_sem_sinais_tem_o_paragrafo_dizendo_isso(tmp_path):
 
     painel, _ = boletim.carregar(config.PROCESSED_DIR)
     vazio = next(m for m in painel["mensal"]["periodos"] if not sinais.sinais_do_mes(sinais.ler(), m))
-    s = boletim.sinais_do_boletim(painel, vazio)
+    s = boletim.sinais_do_boletim(painel, vazio, boletim._enderecos()[1])
     assert s["itens"] == [] and "nenhum sinal de preço ou de volume no mês" in s["paragrafo"]
     assert boletim.main(["--mock", "--mes", vazio, "--saida", str(tmp_path)]) == 0
     md = (tmp_path / f"{vazio}.md").read_text(encoding="utf-8")
