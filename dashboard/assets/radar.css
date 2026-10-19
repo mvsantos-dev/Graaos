@@ -918,6 +918,8 @@ a { color: inherit; text-underline-offset: 2px; }
 .grade { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
 .grade > * { min-width: 0; }
 @media (min-width: 900px) { .grade.duas { grid-template-columns: 1fr 1fr; } }
+/* frase de resumo como item da grade (origens, portos): o espaço acima já vem do gap */
+.cartao.grade > .resumo-grafico { margin-top: 0; }
 
 .kpis .cabecalho { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: baseline; }
 .kpi-bloco { margin-top: 14px; }

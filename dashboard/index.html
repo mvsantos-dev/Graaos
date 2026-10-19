@@ -188,15 +188,15 @@
     <section class="cartao kpis grade" aria-labelledby="titulo-kpis">
       <div>
         <div class="cabecalho">
-          <h3 class="titulo-cartao" id="titulo-kpis">Resumo</h3>
+          <h3 class="titulo-cartao" id="titulo-kpis"></h3>
           <p class="nota" id="nota-kpis"></p>
         </div>
         <div class="kpi-bloco">
-          <h3 id="titulo-mes">Mês</h3>
+          <h3 id="titulo-mes"></h3>
           <div class="kpi-linha" id="kpis-mes"></div>
         </div>
         <div class="kpi-bloco">
-          <h3 id="titulo-acumulado">Acumulado no ano</h3>
+          <h3 id="titulo-acumulado"></h3>
           <div class="kpi-linha" id="kpis-acumulado"></div>
         </div>
         <p class="destaques" id="destaques-kpis"></p>
@@ -220,6 +220,7 @@
       <div>
         <h3 class="titulo-cartao" id="titulo-toneladas">Toneladas importadas por mês</h3>
         <p class="nota" id="nota-toneladas"></p>
+        <p class="resumo-grafico" id="resumo-toneladas"></p>
         <ul class="legenda" id="legenda-toneladas"></ul>
         <div class="grafico alto-300"><canvas id="grafico-toneladas" role="img"></canvas></div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-toneladas"></div></details>
@@ -236,6 +237,7 @@
       <section class="cartao grade" aria-labelledby="titulo-origens">
         <h3 class="titulo-cartao" id="titulo-origens">Share por país de origem</h3>
         <p class="nota" id="nota-origens"></p>
+        <p class="resumo-grafico" id="resumo-origens"></p>
         <div class="grafico" id="caixa-origens"><canvas id="grafico-origens" role="img"></canvas></div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-origens"></div></details>
       </section>
@@ -244,6 +246,7 @@
       <div>
         <h3 class="titulo-cartao" id="titulo-hhi">Concentração de fornecedores (HHI)</h3>
         <p class="nota" id="nota-hhi"></p>
+        <p class="resumo-grafico" id="resumo-hhi"></p>
         <ul class="legenda" id="legenda-hhi"></ul>
         <div class="grafico alto-260"><canvas id="grafico-hhi" role="img"></canvas></div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-hhi"></div></details>
@@ -329,6 +332,7 @@
       <section class="cartao grade" aria-labelledby="titulo-portos">
         <h3 class="titulo-cartao" id="titulo-portos">Ranking de portos (URF)</h3>
         <p class="nota" id="nota-portos"></p>
+        <p class="resumo-grafico" id="resumo-portos"></p>
         <div class="grafico" id="caixa-portos"><canvas id="grafico-portos" role="img"></canvas></div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-portos"></div></details>
       </section>
@@ -342,6 +346,7 @@
           </div>
           <label class="seletor-ano">Ano <select id="filtro-ano-rotas"></select></label>
         </div>
+        <p class="resumo-grafico" id="resumo-rotas"></p>
         <div class="sankey" id="sankey" role="img"></div>
         <h3 class="subtitulo" id="titulo-frete-rotas">Frete por rota</h3>
         <p class="nota" id="nota-frete-rotas"></p>
@@ -1074,6 +1079,114 @@ function desenharKpis() {
   ];
   document.getElementById("kpis-mes").replaceChildren(...linha(mAtual, mAnterior, "mes"));
   document.getElementById("kpis-acumulado").replaceChildren(...linha(aAtual, aAnterior, "acumulado"));
+  texto("destaques-kpis", textoDestaques(g, ate));
+}
+
+// --- Frases de resumo -----------------------------------------------------------------------
+// Os destaques do card Resumo e uma frase por gráfico (volumes, origens, HHI, portos e rotas),
+// para o filtro escolhido; a frase também entra no aria-label do gráfico. O build escreve as
+// mesmas frases no HTML para a visão padrão (src/estatico/resumo.py, com as mesmas regras): mudou
+// aqui, muda lá (tests/e2e/test_estatico_resumo.py compara as duas).
+const FERTILIZANTES_DE = { TOTAL: "fertilizantes", N: "fertilizantes nitrogenados", P: "fertilizantes fosfatados", K: "fertilizantes potássicos", NPK: "fertilizantes compostos (NPK)" };
+// "A", "A e B", "A, B e C"
+const listaComE = (itens) => (itens.length < 2 ? itens.join("") : `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`);
+// "27,9% a menos que em set/2025" (sinal pelo número arredondado); sem base de comparação, null.
+function comparadoA(v, rotulo) {
+  if (nulo(v) || !Number.isFinite(v)) return null;
+  const sinal = sinalDe(v, fmt1, "+");
+  return sinal ? `${fmt1.format(Math.abs(v))}% a ${sinal === MENOS ? "menos" : "mais"} que em ${rotulo}` : `praticamente o mesmo que em ${rotulo}`;
+}
+// Toda frase termina com a fonte, como as dos cartões de preço; frase vazia continua vazia.
+const comFonteComex = (frase) => (frase ? `${frase} Fonte: Comex Stat/MDIC.` : "");
+
+// Destaques: as três maiores origens do ano do mês escolhido e a relação de troca do mês (no porto).
+function textoDestaques(g, ate) {
+  const ano = Number(ate.slice(0, 4));
+  const origens = ((dados.origens.dados[String(ano)] || {})[g] || []).filter((r) => r[1] !== "Outros").slice(0, 3);
+  const partes = [];
+  if (origens.length) partes.push(`Principais origens em ${rotuloAno(ano)}: ${listaComE(origens.map((r, i) => `${r[1]} (${pct(r[3])}${i === 0 ? " das toneladas" : ""})`))}.`);
+  const tr = dados.troca;
+  const j = tr ? tr.periodos.indexOf(ate) : -1;
+  // como no card da troca: um produto por grupo, os três em "Todos"; NPK não entra na relação
+  const chaves = g === "NPK" ? [] : PRODUTOS_TROCA[g] ?? ["kcl", "ureia", "map"];
+  const trocas = j < 0 ? [] : chaves.map((k) => tr.produtos[k]).filter((x) => x && !nulo(x.razao[j]));
+  if (trocas.length) partes.push(`Relação de troca no porto em ${rotuloMes(ate)}, em t de soja por t de fertilizante: ${trocas.map((x) => `${x.nome} ${fmt2.format(x.razao[j])}`).join("; ")}. Não é o preço ao produtor.`);
+  if (partes.length) partes.push("Fonte: Comex Stat/MDIC.");
+  return partes.join(" ");
+}
+
+// Volumes: o mês escolhido contra o mesmo mês do ano anterior e o acumulado do ano.
+function fraseToneladas(g, ate) {
+  const p = periodos();
+  const ano = Number(ate.slice(0, 4)), mes = Number(ate.slice(5, 7));
+  const anterior = `${ano - 1}-${pad(mes)}`;
+  const t = metricas(g, [p.indexOf(ate)]).t;
+  const tAnterior = p.includes(anterior) ? metricas(g, [p.indexOf(anterior)]).t : null;
+  const nome = FERTILIZANTES_DE[g];
+  const noMes = comparadoA(variacaoPct(t, tAnterior), rotuloMes(anterior));
+  let frase = t > 0 ? `Em ${rotuloMes(ate)}, o Brasil importou ${toneladas(t)} de ${nome}${noMes ? `, ${noMes}` : ""}.` : `Em ${rotuloMes(ate)}, o Brasil não importou ${nome}.`;
+  if (mes > 1) {
+    const idxAnt = mesesDoAno(ano - 1, mes);
+    const tAcum = metricas(g, mesesDoAno(ano, mes)).t;
+    const noAcum = comparadoA(variacaoPct(tAcum, idxAnt.length === mes ? metricas(g, idxAnt).t : null), `jan–${MESES[mes - 1]}/${ano - 1}`);
+    frase += ` No acumulado de jan–${MESES[mes - 1]}/${ano}, foram ${toneladas(tAcum)}${noAcum ? `, ${noAcum}` : ""}.`;
+  }
+  return comFonteComex(frase);
+}
+
+// Origens e portos: o maior do ano e os dois seguintes, com o share das toneladas.
+function fraseRanking(tipo, g, ano) {
+  const bloco = tipo === "origens" ? dados.origens : dados.urfs;
+  const linhas = ((bloco.dados[String(ano)] || {})[g] || []).filter((r) => r[1] !== "Outros").slice(0, 3);
+  const nome = FERTILIZANTES_DE[g];
+  if (!linhas.length) return comFonteComex(`Sem importações de ${nome} em ${rotuloAno(ano)}.`);
+  const nomeDe = (r) => (tipo === "origens" ? r[1] : nomeCurtoUrf(r[1]));
+  const [maior, ...demais] = linhas;
+  let frase = `${tipo === "origens" ? "Maior origem" : "Maior porto de entrada (URF)"} dos ${nome} em ${rotuloAno(ano)}: ${nomeDe(maior)}, com ${pct(maior[3])} das toneladas`;
+  if (demais.length) {
+    let soma = 0;
+    for (const r of linhas) soma += r[3];
+    const juntos = tipo === "origens" ? (demais.length === 1 ? "juntas, as duas" : "juntas, as três") : (demais.length === 1 ? "juntos, os dois" : "juntos, os três");
+    frase += `, à frente de ${listaComE(demais.map((r) => `${nomeDe(r)} (${pct(r[3])})`))}; ${juntos} somam ${pct(soma)}`;
+  }
+  frase += ".";
+  const i = dados.anual.anos.indexOf(ano);
+  const nOrigens = i >= 0 ? dados.anual[g].n_origens[i] : null;
+  if (tipo === "origens" && !nulo(nOrigens)) frase += ` Ao todo, as importações vieram de ${fmt0.format(nOrigens)} ${nOrigens === 1 ? "país" : "países"}.`;
+  return comFonteComex(frase);
+}
+
+// HHI: o ano do fim do período contra o limiar de 1.800 (com "Todos", cada grupo, como no gráfico).
+function fraseHhi(g, ano) {
+  const i = dados.anual.anos.indexOf(ano);
+  if (i < 0) return "";
+  const limiar = fmt0.format(LIMIAR_HHI);
+  const posicao = (h) => (h > LIMIAR_HHI ? "acima" : h < LIMIAR_HHI ? "abaixo" : "no limiar");
+  const relacao = { acima: `acima de ${limiar}`, abaixo: `abaixo de ${limiar}`, "no limiar": `em ${limiar}` };
+  if (g !== "TOTAL") {
+    const a = dados.anual[g];
+    if (nulo(a.hhi[i])) return "";
+    const lider = nulo(a.lider[i]) ? "" : `; a maior origem, ${a.lider[i]}, teve ${pct(a.lider_share_pct[i])} das toneladas`;
+    return comFonteComex(`Em ${rotuloAno(ano)}, o HHI dos ${FERTILIZANTES_DE[g]} ficou em ${fmt0.format(a.hhi[i])}, ${relacao[posicao(a.hhi[i])]}, o limiar de mercado altamente concentrado${lider}.`);
+  }
+  const valores = GRUPOS.map((x) => [x, dados.anual[x].hhi[i]]).filter(([, h]) => !nulo(h));
+  const blocos = ["acima", "no limiar", "abaixo"].map((pos) => [pos, valores.filter(([, h]) => posicao(h) === pos)]).filter(([, l]) => l.length);
+  if (!blocos.length) return "";
+  const lista = (l) => listaComE(l.map(([x, h]) => `${x} (${fmt0.format(h)})`));
+  const [[pos, primeiros], ...resto] = blocos;
+  return comFonteComex(`Em ${rotuloAno(ano)}, o HHI de ${lista(primeiros)} ficou ${relacao[pos]}, o limiar de mercado altamente concentrado${resto.map(([p, l]) => `; o de ${lista(l)}, ${p}`).join("")}.`);
+}
+
+// Rotas: a maior rota do ano e o frete médio das rotas com volume relevante.
+function fraseRotas(bloco, g, ano) {
+  const nome = FERTILIZANTES_DE[g];
+  if (!bloco || !bloco.fluxos.length) return comFonteComex(`Sem importações de ${nome} em ${rotuloAno(ano)}.`);
+  const corte = bloco.corte_t ?? dados.rotas.corte_t;
+  if (!bloco.rotas.length) return comFonteComex(`Em ${rotuloAno(ano)}, nenhuma rota de ${nome} teve pelo menos ${fmt0.format(corte)} t.`);
+  const [pais, , urf, t, share, frete] = bloco.rotas[0];
+  let frase = `Maior rota dos ${nome} em ${rotuloAno(ano)}: ${pais ?? "–"} → ${urf ? nomeCurtoUrf(urf) : "–"}, com ${toneladas(t)} (${pct(share)} do total)${nulo(frete) ? "" : ` e frete de ${porTonelada(frete)}`}.`;
+  frase += ` ${bloco.n_relevantes === 1 ? "A rota" : `As ${fmt0.format(bloco.n_relevantes)} rotas`} com pelo menos ${fmt0.format(corte)} t ${bloco.n_relevantes === 1 ? "soma" : "somam"} ${pct(bloco.share_relevantes_pct)} das toneladas${nulo(bloco.frete_relevantes) ? "" : `, com frete médio de ${porTonelada(bloco.frete_relevantes)}`}.`;
+  return comFonteComex(frase);
 }
 
 function desenharToneladas(indices) {
@@ -1099,7 +1212,9 @@ function desenharToneladas(indices) {
   texto("nota-toneladas", `${NOMES[estado.grupo]} · ${rotuloMes(p[indices[0]])} a ${rotuloMes(p[indices[indices.length - 1]])}`);
   legenda("legenda-toneladas", empilhado ? grupos.map((g) => ({ rotulo: `${g} · ${NOMES[g]}`, corItem: corGrupo(g), tipo: "area" })) : []);
   const canvas = document.getElementById("grafico-toneladas");
-  canvas.setAttribute("aria-label", `Toneladas importadas por mês, ${NOMES[estado.grupo]}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.`);
+  const resumo = fraseToneladas(estado.grupo, p[indices[indices.length - 1]]);
+  texto("resumo-toneladas", resumo);
+  canvas.setAttribute("aria-label", `Toneladas importadas por mês, ${NOMES[estado.grupo]}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores. ${resumo}`);
   novoGrafico("grafico-toneladas", {
     type: "line",
     data: { labels: rotulos, datasets },
@@ -1143,7 +1258,9 @@ function desenharRanking({ tipo, idCanvas, idCaixa, idNota, idTabela }) {
   texto(idNota, `${NOMES[g]} · ${rotuloAno(ano)} · share das toneladas, top ${linhas.length - (linhas.some((r) => r[1] === "Outros") ? 1 : 0)} e outros`);
   document.getElementById(idCaixa).style.height = `${Math.max(160, linhas.length * (estreito() ? 34 : 30) + 36)}px`;
   const canvas = document.getElementById(idCanvas);
-  canvas.setAttribute("aria-label", `${tipo === "origens" ? "Share por país de origem" : "Ranking de portos"} em ${rotuloAno(ano)}, ${NOMES[g]}. A tabela abaixo traz os valores.`);
+  const resumo = fraseRanking(tipo, g, ano);
+  texto(`resumo-${tipo}`, resumo);
+  canvas.setAttribute("aria-label", `${tipo === "origens" ? "Share por país de origem" : "Ranking de portos"} em ${rotuloAno(ano)}, ${NOMES[g]}. A tabela abaixo traz os valores. ${resumo}`);
   const anoAnterior = anoParcial(ano) ? `jan–${MESES[nMeses(ano) - 1]}/${ano - 1}` : String(ano - 1);
   novoGrafico(idCanvas, {
     type: "bar",
@@ -1215,6 +1332,7 @@ function desenharRotas() {
   const nOrigens = bloco ? bloco.origens.filter((o) => o[1] !== "Outros").length : 0;
   const nUrfs = bloco ? bloco.urfs.filter((u) => u[1] !== "Outros").length : 0;
   texto("nota-rotas", `${NOMES[g]} · ${rotuloAno(ano)} · espessura = toneladas · ${nOrigens} maiores origens e ${nUrfs} maiores URFs; o resto em Outros`);
+  texto("resumo-rotas", fraseRotas(bloco, g, ano));
   desenharSankey(bloco, g, ano);
   tabelaRotas(bloco, g, ano);
 }
@@ -1309,7 +1427,7 @@ function desenharSankey(bloco, g, ano) {
   caixa.replaceChildren(desenho);
   prepararFluxoSankey({ assinatura: `${g}|${ano}`, desenho, camadaFitas, centrais, largura, altura, ...lados });
   const maiores = [...fitas].filter((f) => !ehOutros(f)).sort((a, b) => b.t - a.t).slice(0, 3);
-  caixa.setAttribute("aria-label", `Fluxo das importações, ${NOMES[g]}, ${rotuloAno(ano)}: das maiores origens para as maiores URFs. Maiores rotas: ${maiores.map((f) => `${nomeO(f.o)} para ${nomeU(f.u)}, ${toneladas(f.t)}`).join("; ")}. A tabela abaixo traz o frete por rota.`);
+  caixa.setAttribute("aria-label", `Fluxo das importações, ${NOMES[g]}, ${rotuloAno(ano)}: das maiores origens para as maiores URFs. Maiores rotas: ${maiores.map((f) => `${nomeO(f.o)} para ${nomeU(f.u)}, ${toneladas(f.t)}`).join("; ")}. A tabela abaixo traz o frete por rota. ${fraseRotas(bloco, g, ano)}`);
 
   // Destaque e dica ao passar o mouse (ou tocar) numa fita ou num nó.
   const corDica = cor(varGrupo(g));
@@ -2017,7 +2135,9 @@ function desenharHhi() {
     ...(grupos.length > 1 ? grupos.map((g) => ({ rotulo: `${g} · ${NOMES[g]}`, corItem: corGrupo(g), tipo: "linha" })) : []),
     { rotulo: "1.800: altamente concentrado", tipo: "limiar" },
   ]);
-  document.getElementById("grafico-hhi").setAttribute("aria-label", `HHI por ano, ${NOMES[estado.grupo]}, de ${anos[0]} a ${anos[anos.length - 1]}. A tabela abaixo traz os valores.`);
+  const resumo = fraseHhi(estado.grupo, anoAte);
+  texto("resumo-hhi", resumo);
+  document.getElementById("grafico-hhi").setAttribute("aria-label", `HHI por ano, ${NOMES[estado.grupo]}, de ${anos[0]} a ${anos[anos.length - 1]}. A tabela abaixo traz os valores.${resumo ? ` ${resumo}` : ""}`);
   novoGrafico("grafico-hhi", {
     type: "line",
     data: { labels: anos.map((a) => (anoParcial(a) ? `${a}*` : String(a))), datasets },
