@@ -7,9 +7,10 @@ do GitHub Pages, sem instalar pacotes.
 
 Etapas (cada uma num módulo, chamadas em ordem por __main__.py):
 
-- resumo: o card "Resumo" já preenchido, os destaques (origens e relação de troca), a frase de
-  resumo de cada gráfico e o aria-label dos canvas, iguais ao que o JavaScript desenha na visão
-  padrão (todos os grupos, período inteiro). O JavaScript continua redesenhando por cima.
+- resumo e resumo_precos: o card "Resumo" já preenchido, os destaques (origens e relação de
+  troca), a frase de resumo de cada gráfico e o aria-label dos canvas, iguais ao que o JavaScript
+  desenha na visão padrão (todos os grupos, período inteiro). O JavaScript continua redesenhando
+  por cima.
 - tabelas: as tabelas de "Ver tabela" já no HTML, iguais às da visão padrão.
 - boletins: uma página por mês em boletim/AAAA-MM/ e o arquivo em boletim/.
 - cabecalho: JSON-LD, robots.txt, sitemap.xml, 404.html, llms.txt, _headers e a versão (?v=) dos

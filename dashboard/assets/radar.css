@@ -911,6 +911,10 @@ a { color: inherit; text-underline-offset: 2px; }
 .cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: 6px; padding: 20px; min-width: 0; }
 .cartao h3.titulo-cartao { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
 .cartao .nota { margin: 2px 0 0; color: var(--texto-2); font-size: 13px; }
+/* Frase de resumo de cada gráfico e destaques do card Resumo: vêm prontas no HTML do build
+   (src/estatico) e o script as reescreve para o filtro escolhido. Vazias, não ocupam espaço. */
+.cartao .resumo-grafico, .cartao .destaques { margin: 10px 0 0; color: var(--texto); font-size: 13.5px; line-height: 1.5; max-width: 72ch; }
+.cartao .resumo-grafico:empty, .cartao .destaques:empty { display: none; }
 .grade { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
 .grade > * { min-width: 0; }
 @media (min-width: 900px) { .grade.duas { grid-template-columns: 1fr 1fr; } }
