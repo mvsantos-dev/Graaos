@@ -413,6 +413,8 @@ def llms(ctx: Contexto) -> str:
     ultimo = _ultimo_boletim(ctx)
     if ultimo:
         linhas.append(f"- [Último boletim]({URL_BASE}{ultimo}): {formato.rotulo_mes_longo(ultimo[8:15])}")
+    if (ctx.site / "sinais.xml").is_file():
+        linhas.append(f"- [Sinais do mês (feed Atom)]({URL_BASE}sinais.xml): alertas automáticos de preço e de volume por produto, um item por mês, por regras fixas (sem IA)")
     linhas += [
         "",
         "## Dados abertos",
@@ -429,6 +431,8 @@ def llms(ctx: Contexto) -> str:
     for pasta, titulo, descricao in pastas:
         if (ctx.raiz / pasta).is_dir():
             linhas.append(f"- [{titulo}]({arvore}{pasta}): {descricao}")
+    if (ctx.raiz / "data" / "sinais.json").is_file():
+        linhas.append(f"- [Sinais (JSON)]({REPOSITORIO}/blob/main/data/sinais.json): histórico de todos os sinais de preço e de volume, num formato estável (README)")
     linhas += [
         f"- [Código e método]({REPOSITORIO}): pipeline em Python, README com o método e as limitações (código MIT)",
         "",
@@ -453,6 +457,7 @@ def headers(ctx: Contexto) -> str:
     curtos = ["/", "/index.html"]
     curtos += sorted(f"/{p.name}" for p in ctx.site.glob("*.json"))
     curtos += sorted({f"/{p.caminho.split('/', 1)[0]}/*" for p in ctx.paginas if "/" in p.caminho})
+    curtos += ["/sinais.xml"] if (ctx.site / "sinais.xml").is_file() else []  # feed: revalida a cada leitura, como as páginas
     linhas = [
         "# Gerado pelo build (src/estatico/cabecalho.py). Cloudflare Workers static assets: não é servido.",
         "# assets/: um ano, immutable, porque toda referência leva ?v=<hash do arquivo> (o build falha se",

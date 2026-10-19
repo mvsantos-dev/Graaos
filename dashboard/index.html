@@ -30,6 +30,7 @@
 <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
 <link rel="manifest" href="site.webmanifest">
+<link rel="alternate" type="application/atom+xml" title="Graaos · Fertilizantes: sinais do mês" href="sinais.xml">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous" defer></script>
 <!-- Fontes da primeira tela: título (Inter Tight 300), texto e chip (400), menu, botões e kicker (JetBrains
      Mono 400) e, só onde a marca aparece (acima de 820 px), "Graaos" em Inter Tight 600. O build põe ?v= aqui
@@ -55,6 +56,7 @@
   <a class="marca" href="#inicio" data-secao="inicio"><strong>Graaos</strong><span>Fertilizantes</span></a>
   <nav class="nav-pilula" id="nav-secoes" aria-label="Seções">
     <span class="nav-indicador" aria-hidden="true"></span>
+      <a href="#sinais" data-secao="sinais">Sinais</a>
       <a href="#boletim" data-secao="boletim">Boletim</a>
       <a href="#volumes" data-secao="volumes">Volumes</a>
       <a href="#origens" data-secao="origens">Origens</a>
@@ -156,6 +158,16 @@
 </section>
 
 <div class="pagina">
+  <!-- Sinais do mês: estática, preenchida no build (src/estatico/sinais.py, de data/sinais.json); sem o build, escondida. -->
+  <section class="bloco sinais" id="sinais" aria-labelledby="t-sinais" hidden>
+    <header class="bloco-cabecalho">
+      <p class="kicker">Sinais</p>
+      <h2 class="titulo-bloco" id="t-sinais" tabindex="-1">Sinais do mês</h2>
+      <p class="bloco-lead" id="sinais-lead"></p>
+    </header>
+    <div class="sinais-corpo" id="sinais-corpo"></div>
+  </section>
+
   <div class="filtros" role="group" aria-label="Filtros">
     <div class="filtro">
       <span class="rotulo" id="rotulo-grupo">Grupo</span>
@@ -3180,13 +3192,17 @@ function desenharBoletim(b) {
   if (b.mock) sobretitulo.append(el("span", { classe: "selo" }, "exemplo (modo --mock, sem IA)"));
   texto("titulo-boletim", b.titulo);
   texto("lead-boletim", b.lead);
-  document.getElementById("texto-boletim").replaceChildren(...b.paragrafos.map((p) => el("p", {}, String(p))));
+  // parágrafo de sinais: frases-modelo com os números do programa (src/boletim.py), fora do texto da IA
+  const sinais = b.sinais && typeof b.sinais.paragrafo === "string" && b.sinais.paragrafo ? b.sinais : null;
+  document.getElementById("texto-boletim").replaceChildren(...b.paragrafos.map((p) => el("p", {}, String(p))),
+    ...(sinais ? [el("h4", { classe: "sinais-boletim" }, "Sinais do mês"), el("p", {}, sinais.paragrafo)] : []));
   const data = /^\d{4}-\d{2}-\d{2}/.test(b.gerado_em ?? "") ? `${b.gerado_em.slice(8, 10)}/${b.gerado_em.slice(5, 7)}/${b.gerado_em.slice(0, 4)}` : null;
   const detalhes = [b.modelo ? `modelo ${b.modelo}` : null, data ? `gerado em ${data}` : null].filter(Boolean).join(", ");
   const nota = typeof b.nota === "string" && b.nota ? `${b.nota} ` : "";
   texto("rodape-boletim", `${nota}${b.rodape || "Texto gerado por IA a partir de dados do Comex Stat/MDIC; números inseridos e verificados automaticamente."} Fonte: ${b.fonte || "Comex Stat/MDIC"}.${detalhes ? ` (${detalhes})` : ""}`);
   const links = [];
   if (/^boletins\/\d{4}-\d{2}\.md$/.test(b.arquivo ?? "")) links.push(el("a", { href: `${REPOSITORIO}/blob/main/${b.arquivo}` }, "Boletim com os números citados"));
+  if (sinais && /^\d{4}-\d{2}$/.test(b.mes ?? "")) links.push(el("a", { href: `boletim/${b.mes}/#sinais` }, "Sinais do mês"));
   links.push(el("a", { href: `${REPOSITORIO}/tree/main/boletins` }, "Histórico de boletins"));
   document.getElementById("links-boletim").replaceChildren(...links);
 }

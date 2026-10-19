@@ -20,6 +20,7 @@ from .. import boletim as B
 from . import boletins_frases as T
 from . import dados as D
 from . import formato as F
+from . import sinais as SN
 from .contexto import REPOSITORIO, URL_BASE, Contexto, ErroEstatico, Pagina, esc
 
 PASTA = "boletim"
@@ -447,6 +448,7 @@ def _navegacao(meses: list[Mes], i: int) -> str:
 def _pagina_mes(ctx: Contexto, meses: list[Mes], i: int, icones: list[str]) -> str:
     mes = meses[i]
     f = mes.fatos
+    sinais = SN.documento(ctx)  # o bloco "Sinais do mês", do data/sinais.json
     tem_origens = _ano_ate_o_mes(ctx.dados, mes.periodo) and "lider_total_ano" in f
     descricao = T.descricao(f, tem_origens)
     trilha = [("Graaos · Fertilizantes", URL_BASE), ("Boletins", URL_BASE + f"{PASTA}/"), (mes.nome, mes.url)]
@@ -475,6 +477,7 @@ def _pagina_mes(ctx: Contexto, meses: list[Mes], i: int, icones: list[str]) -> s
         f'<p class="bloco-lead">{_frase(T.lead(f))}</p>'
         "</header>",
         _cartao_texto(mes) if mes.texto else "",
+        SN.bloco_boletim(sinais, mes.periodo, SN.ids_da_home(ctx)),
         _cartao_kpis(mes),
         _cartao_grupos(ctx, mes),
         _cartao_origens(ctx, meses, i),
@@ -482,7 +485,7 @@ def _pagina_mes(ctx: Contexto, meses: list[Mes], i: int, icones: list[str]) -> s
         "</section>",
         _navegacao(meses, i),
         "</main>",
-        _rodape(ctx, _fontes(mes.texto)),
+        _rodape(ctx, [f for f in ORDEM_FONTES if f in {*_fontes(mes.texto), *SN.fontes(SN.do_mes(sinais, mes.periodo))}]),
         "</div>",
     ) if x)
     return _documento(cabeca, corpo)

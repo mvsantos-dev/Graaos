@@ -18,6 +18,9 @@ Fluxo:
    reprovar, tenta mais uma vez com os erros no prompt; se reprovar de novo, falha sem publicar.
 4. Troca os marcadores pelos valores e grava boletins/AAAA-MM.md, boletins/AAAA-MM.json (o texto
    do mês, lido pela página boletim/AAAA-MM/ do site) e boletins/latest.json.
+5. Depois da validação, junta o parágrafo de sinais do mês (campo "sinais" e seção do .md): frases-
+   modelo com os números do programa (src/sinais.py, regras fixas). A IA não escreve nada dele, e o
+   texto dela não muda.
 
 --mock usa uma resposta fixa de exemplo, sem chamar nenhuma API, e grava em boletins/mock/
 (fora do Git). Só biblioteca padrão: o job que recebe a chave não instala dependências.
@@ -1762,6 +1765,47 @@ def gerar(fatos: Fatos, provedor) -> dict:
     raise ErroBoletim(f"resposta reprovada na validação após {TENTATIVAS} tentativas; nada foi publicado.")
 
 
+# --- Sinais do mês (frases-modelo, sem IA) ------------------------------------------------
+
+
+def sinais_do_boletim(painel: dict, mes: str, dashboard: str = DASHBOARD) -> dict:
+    """O parágrafo de sinais do mês, montado pelo programa: as frases do src/sinais.py (as do
+    data/sinais.json, calculadas do mesmo dashboard.json) com os números já inseridos, na ordem dos
+    cards do site (fortes primeiro e, no mesmo nível, o maior desvio), até o número de cards da home.
+    Nada passa pela IA. Campos: paragrafo (texto pronto), fonte, pagina (todos os sinais do mês no
+    site), itens (todos os sinais do mês: id, nível, frase e âncora do gráfico) e notas (ressalvas e
+    fonte de todos os itens, que a lista completa do .md mostra)."""
+    from . import sinais as S  # só biblioteca padrão, como este módulo
+    from .estatico import sinais as ES
+
+    try:
+        lista = ES.ordenar(S.sinais_do_mes(painel, mes))
+    except (S.ErroSinais, KeyError, IndexError, TypeError, ValueError) as e:
+        raise ErroBoletim(f"sinais de {mes}: {e}") from e
+    nome = mes_extenso(mes)
+    mostrados = lista[: ES.MAX_CARTOES]
+    fontes = ES.fontes(mostrados)
+    if not lista:
+        paragrafo = f"Sinais de {nome}, pelas regras fixas do programa (sem IA): nenhum sinal de preço ou de volume no mês."
+    else:
+        partes = [f"Sinais de {nome}, pelas regras fixas do programa (sem IA): {ES.contagem(lista)}."]
+        if len(lista) > len(mostrados):
+            partes.append(f"Os {len(mostrados)} principais vêm a seguir; os outros {len(lista) - len(mostrados)} estão na página do boletim do mês.")
+        nivel = {"forte": "sinal forte", "atencao": "sinal de atenção"}
+        partes += [f"{s['frase']}, {nivel[s['nivel']]}." for s in mostrados]
+        partes += ES.ressalvas(mostrados)
+        paragrafo = " ".join(partes)
+    paragrafo += f" Fonte: {'; '.join(fontes)}."
+    return {
+        "paragrafo": paragrafo,
+        "fonte": "; ".join(fontes),
+        "pagina": f"{dashboard}boletim/{mes}/#sinais",
+        "itens": [{"id": s["id"], "nivel": s["nivel"], "frase": s["frase"], "ancora": s["ancora"]} for s in lista],
+        # a lista completa pode ter a troca ou a Pink Sheet fora dos 6 do parágrafo
+        "notas": " ".join([*ES.ressalvas(lista), f"Fonte: {'; '.join(ES.fontes(lista))}."]),
+    }
+
+
 # --- Saída -------------------------------------------------------------------------------
 
 
@@ -1786,6 +1830,15 @@ def markdown(conteudo: dict, meta: dict) -> str:
         linhas += [re.sub(r"^(\d+)([.)])(?=\s|$)", r"\1\\\2", paragrafo), ""]
     if conteudo.get("nota"):
         linhas += [f"*{conteudo['nota']}*", ""]
+    sinais = meta.get("sinais")
+    if sinais:
+        linhas += ["## Sinais do mês", "", sinais["paragrafo"], ""]
+        if sinais["itens"]:
+            nivel = {"forte": "Forte", "atencao": "Atenção"}
+            linhas += ["<details>", f"<summary>Todos os sinais do mês ({len(sinais['itens'])}), por regras fixas do programa, sem IA</summary>", ""]
+            linhas += [f"- **{nivel[s['nivel']]}** · {s['frase']} (`{s['id']}`)" for s in sinais["itens"]]
+            linhas += ["", *([sinais["notas"], ""] if sinais.get("notas") else []), "</details>", ""]
+        linhas += [f"[Sinais do mês no site]({sinais['pagina']})", ""]
     linhas += ["<details>", "<summary>Números citados (inseridos pelo programa a partir do pacote de fatos)</summary>", ""]
     linhas += ["| Marcador | Valor |", "| --- | --- |"]
     linhas += [f"| `{chave}` | {valor} |" for chave, valor in conteudo["marcadores"].items()]
@@ -1813,9 +1866,11 @@ def _mes_do_latest(latest: Path) -> str | None:
     return mes if isinstance(mes, str) and re.fullmatch(r"\d{4}-\d{2}", mes) else None
 
 
-def escrever(conteudo: dict, fatos: Fatos, saida: Path, provedor: str, mock: bool, agora: datetime | None = None) -> tuple[Path, Path | None]:
+def escrever(conteudo: dict, fatos: Fatos, saida: Path, provedor: str, mock: bool, agora: datetime | None = None,
+             sinais: dict | None = None) -> tuple[Path, Path | None]:
     """Grava AAAA-MM.md, AAAA-MM.json (o mesmo conteúdo do latest.json, para a página do mês no
-    site) e, se o mês não for anterior ao do latest.json atual, o latest.json."""
+    site) e, se o mês não for anterior ao do latest.json atual, o latest.json. `sinais` (de
+    sinais_do_boletim) vai à parte do texto da IA: campo "sinais" e seção do .md."""
     agora = agora or datetime.now(timezone.utc)
     mes = fatos.periodo
     arquivo = Path(saida) / f"{mes}.md"
@@ -1835,7 +1890,9 @@ def escrever(conteudo: dict, fatos: Fatos, saida: Path, provedor: str, mock: boo
     ultimo = {**meta, "titulo": conteudo["titulo"], "lead": conteudo["lead"], "paragrafos": conteudo["paragrafos"], "marcadores": conteudo["marcadores"]}
     if conteudo.get("nota"):
         ultimo["nota"] = conteudo["nota"]
-    _gravar(arquivo, markdown(conteudo, meta))
+    if sinais is not None:
+        ultimo["sinais"] = sinais
+    _gravar(arquivo, markdown(conteudo, {**meta, "sinais": sinais}))
     json_do_mes = json.dumps(ultimo, ensure_ascii=False, indent=1) + "\n"
     _gravar(Path(saida) / f"{mes}.json", json_do_mes)  # texto de cada mês para boletim/AAAA-MM/ (src/estatico)
     latest = Path(saida) / "latest.json"
@@ -1884,7 +1941,8 @@ def main(argv: list[str] | None = None) -> int:
         provedor = ProvedorMock() if args.mock else llm.provedor_do_ambiente()
         log.info("Boletim de %s: provedor %s, modelo %s, %d fatos no pacote.", mes, provedor.nome, provedor.modelo, len(fatos))
         conteudo = gerar(fatos, provedor)
-        arquivo, latest = escrever(conteudo, fatos, saida, provedor.nome, args.mock)
+        sinais = sinais_do_boletim(painel, mes, _enderecos()[1])  # depois da validação: não passa pela IA
+        arquivo, latest = escrever(conteudo, fatos, saida, provedor.nome, args.mock, sinais=sinais)
     except (ErroBoletim, llm.ErroLLM) as erro:
         log.error("%s", erro)
         return 1
