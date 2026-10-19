@@ -256,8 +256,9 @@ Banco Mundial e PTAX do BCB. **Logística portuária** e **Grãos**: planejados.
   insumos NUNCA entram nos totais, shares, mapa, rotas, estados nem no boletim de fertilizantes:
   o transform recusa NCM 2503/2510 em `data/raw/` e um teste confere que os totais do dashboard
   somam só os NCMs do `ncm_fertilizantes.csv`. Granel líquido (2807, 2809, 2814) fica fora.
-  Amostra pequena: < `INSUMOS_CORTE_AMOSTRA_T` do insumo (ou `CORTE_AMOSTRA_T` de MAP), fora dos
-  gráficos. Em toda saída pública que mostrar o custo de insumo: é uma aproximação, não o custo de
+  Amostra pequena: < `INSUMOS_CORTE_AMOSTRA_T` do insumo (ou `CORTE_AMOSTRA_T` de MAP): fora das
+  frases, das médias e dos sinais; nos gráficos, ponto vazado ligado por trecho pontilhado e mais
+  claro, sem preenchimento embaixo, com a tonelagem e o motivo na dica e um item na legenda. Em toda saída pública que mostrar o custo de insumo: é uma aproximação, não o custo de
   nenhuma empresa, e é no porto, não o preço ao produtor; o spread da rocha não é ágio e vai com o
   FOB do Brasil. Coeficientes e cortes no texto do site vêm do dashboard.json (nada à mão).
 - Sinais (`src/sinais.py`, SÓ biblioteca padrão, o build importa `frase()` e `sinais_do_mes()`):

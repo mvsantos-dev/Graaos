@@ -2635,7 +2635,7 @@ function frasePrecoEnxofre(indices) {
   if (comPreco(ate)) {
     const dif = diferencaEmTexto(variacaoPct(v("cif", ate), comPreco(antes) ? v("cif", antes) : null), rotuloMes(antes));
     frase = `Em ${rotuloMes(ate)}, o ${nome} importado custou ${porTonelada(v("cif", ate))} CIF${dif ? ` (${dif})` : ""}, com ${porTonelada(v("fob", ate))} FOB e ${porTonelada(v("frete", ate))} de frete.`;
-  } else frase = semPrecoInsumo(prod, ate, "fora do gráfico de preço", "preço");
+  } else frase = semPrecoInsumo(prod, ate, "ponto vazado no gráfico de preço", "preço");
   const meses = indices.map((i) => p[i]).filter(comPreco);
   if (meses.length > 1) {
     let menor = meses[0], maior = meses[0];
@@ -2671,6 +2671,16 @@ function fraseRocha(indices) {
   return `${quando}, o Brasil importou ${nome} a ${porTonelada(v(prod.fob, i))} FOB e ${porTonelada(v(prod.cif, i))} CIF; o benchmark do Banco Mundial (${ref.serie}), na base ${ref.base}, foi de ${porTonelada(v(ref.bm, i))}. Na base comparável (${ref.comparacao}), o preço do Brasil, de ${brasil}, ficou ${relacao}${emUsd}. No período, ficou acima do benchmark em ${fmt0.format(acima)} de ${fmt0.format(meses.length)} ${meses.length === 1 ? "mês comparável" : "meses comparáveis"}. ${NAO_E_AGIO} ${FONTE_INSUMOS_PINK}`;
 }
 
+// Dica dos meses de amostra pequena: quantas toneladas vieram e o corte.
+const avisoPequena = (prod) => `Amostra pequena: menos de ${fmt0.format(prod.corte_amostra_t)} t no mês, preço de poucas cargas; fora das frases e das médias`;
+function avisoPequenaCusto(periodo) {
+  const b = dados.insumos, c = b.custo_map;
+  const quais = ["enxofre", "rocha"].filter((k) => pequenaInsumo(b.produtos[k], periodo))
+    .map((k) => `${nomeNaFrase(b.produtos[k].nome)} (${toneladas(noMesInsumos(b.produtos[k].t, periodo))})`);
+  const de = quais.length ? quais.join(" e ") : `MAP (menos de ${fmt0.format(c.corte_amostra_map_t)} t)`;
+  return `Amostra pequena de ${de} no mês: valor de poucas cargas, fora das frases e da média`;
+}
+
 // Custo de insumo e razão: os meses com os três preços (enxofre, rocha e MAP) fora da amostra pequena.
 const custoMapNoMes = (campo, periodo) => noMesInsumos(dados.insumos.custo_map[campo], periodo);
 const custoUsavel = (periodo) => ["custo", "cif_map", "razao"].every((campo) => !nulo(custoMapNoMes(campo, periodo)))
@@ -2679,7 +2689,7 @@ function semCustoMap(periodo) {
   const b = dados.insumos, nomes = ["enxofre", "rocha"].map((k) => nomeNaFrase(b.produtos[k].nome));
   if (custoMapNoMes("amostra_pequena", periodo) === true) {
     const cortes = [b.produtos.enxofre.corte_amostra_t, b.produtos.rocha.corte_amostra_t, b.custo_map.corte_amostra_map_t].map((x) => fmt0.format(x));
-    return `Em ${rotuloMes(periodo)}, o custo de insumo fica fora dos gráficos: amostra pequena (menos de ${cortes[0]} t de ${nomes[0]}, ${cortes[1]} t de ${nomes[1]} ou ${cortes[2]} t de MAP no mês).`;
+    return `Em ${rotuloMes(periodo)}, o custo de insumo fica fora da conta: amostra pequena (menos de ${cortes[0]} t de ${nomes[0]}, ${cortes[1]} t de ${nomes[1]} ou ${cortes[2]} t de MAP no mês; ponto vazado nos gráficos).`;
   }
   return `Em ${rotuloMes(periodo)}, não há custo de insumo: falta o preço de ${nomes[0]}, de ${nomes[1]} ou de MAP no mês.`;
 }
@@ -2721,9 +2731,9 @@ function notasInsumos(indices) {
   const enx = b.produtos.enxofre, rocha = b.produtos.rocha, ref = rocha.benchmark;
   const descricao = (prod) => prod.descricao.charAt(0).toUpperCase() + prod.descricao.slice(1);  // "Enxofre a granel ... (NCM 2503)"
   return {
-    "nota-enxofre": `${descricao(enx)} · US$ por tonelada e toneladas · ${periodo} · meses com menos de ${fmt0.format(enx.corte_amostra_t)} t ficam fora das linhas de preço (trecho tracejado; na tabela, "pequena")`,
-    "nota-rocha": `${descricao(rocha)} · benchmark: ${ref.serie}, ${ref.base}, Banco Mundial · ${periodo} · meses com menos de ${fmt0.format(rocha.corte_amostra_t)} t ficam fora da comparação (trecho tracejado; na tabela, "pequena")`,
-    "nota-custo-map": `Custo de insumo = CIF do enxofre × ${fmtCoef.format(c.coef_enxofre)} + CIF da rocha fosfática × ${fmtCoef.format(c.coef_rocha)}, em US$ por tonelada de MAP · CIF do MAP: NCM ${c.ncms_map.join(", ")} · ${periodo} · o mês com amostra pequena de um dos três fica fora da conta (trecho tracejado nos gráficos)`,
+    "nota-enxofre": `${descricao(enx)} · US$ por tonelada e toneladas · ${periodo} · meses com menos de ${fmt0.format(enx.corte_amostra_t)} t aparecem como ponto vazado, fora das frases (na tabela, "pequena")`,
+    "nota-rocha": `${descricao(rocha)} · benchmark: ${ref.serie}, ${ref.base}, Banco Mundial · ${periodo} · meses com menos de ${fmt0.format(rocha.corte_amostra_t)} t aparecem como ponto vazado, fora das frases e da comparação (na tabela, "pequena")`,
+    "nota-custo-map": `Custo de insumo = CIF do enxofre × ${fmtCoef.format(c.coef_enxofre)} + CIF da rocha fosfática × ${fmtCoef.format(c.coef_rocha)}, em US$ por tonelada de MAP · CIF do MAP: NCM ${c.ncms_map.join(", ")} · ${periodo} · o mês com amostra pequena de um dos três aparece como ponto vazado, fora das frases e da média`,
     "metodo-insumos": `Insumos do fósforo (enxofre e rocha fosfática importados): ${b.notas.join(" ")}`,
   };
 }
@@ -2736,23 +2746,28 @@ function eixosInsumos(formatarY) {
   escalas.y.afterFit = (escala) => { escala.width = 48; };
   return escalas;
 }
-function linhaInsumo(label, data, corLinha, rotuloFinal, tracejado = false) {
-  // mês entre dois sem linha (amostra pequena ou borda do período) vira um ponto
+function linhaInsumo(label, data, corLinha, rotuloFinal, tracejado = false, pequenas = null) {
+  // mês entre dois sem linha (sem dado ou borda do período) vira um ponto
   const isolado = (k) => !nulo(data[k]) && nulo(data[k - 1]) && nulo(data[k + 1]);
-  // mês sem preço (amostra pequena) no meio da série: a linha passa por cima, tracejada e mais
-  // clara, sem preenchimento embaixo; o mês não ganha ponto nem valor na dica
-  const lacuna = (s) => s.p0.skip || s.p1.skip;
+  // mês de amostra pequena (pequenas[k]): o valor aparece como ponto vazado, ligado por um trecho
+  // pontilhado e mais claro, sem preenchimento embaixo; ele fica fora das frases e das médias
+  const pequena = (k) => pequenas?.[k] === true && !nulo(data[k]);
+  const fraco = (s) => s.p0.skip || s.p1.skip || pequena(s.p0DataIndex) || pequena(s.p1DataIndex);
   return {
     label, data, rotuloFinal, borderColor: corLinha, backgroundColor: corLinha, borderWidth: 2, borderDash: tracejado ? [6, 4] : [],
-    pointRadius: (c) => (isolado(c.dataIndex) ? 3 : 0),
+    pointRadius: (c) => (pequena(c.dataIndex) ? 3.5 : isolado(c.dataIndex) ? 3 : 0),
+    pointBackgroundColor: (c) => (pequena(c.dataIndex) ? cor("--superficie") : corLinha),
+    pointBorderColor: corLinha, pointBorderWidth: (c) => (pequena(c.dataIndex) ? 1.5 : 1),
     pointHoverRadius: 4, pointHoverBorderWidth: 2, pointHoverBorderColor: cor("--superficie"), tension: 0, spanGaps: true,
     segment: {
-      borderDash: (s) => (lacuna(s) ? [3, 4] : undefined),
-      borderColor: (s) => (lacuna(s) ? comAlfa(corLinha, 0.55) : undefined),
-      backgroundColor: (s) => (lacuna(s) ? "transparent" : undefined),
+      borderDash: (s) => (fraco(s) ? [2, 3] : undefined),
+      borderColor: (s) => (fraco(s) ? comAlfa(corLinha, 0.55) : undefined),
+      backgroundColor: (s) => (fraco(s) ? "transparent" : undefined),
     },
   };
 }
+// Item da legenda para os meses de amostra pequena, só quando o período tem algum.
+const itemPequena = (algum) => (algum ? [{ rotulo: "Ponto vazado: amostra pequena (poucas cargas no mês), fora das frases e das médias", corItem: cor("--texto-2"), tipo: "pontilhada" }] : []);
 function graficoToneladasInsumo(chave, indices, margem) {
   const prod = dados.insumos.produtos[chave], p = periodos(), corP = corGrupo("P");
   novoGrafico(`grafico-${chave}-t`, {
@@ -2802,13 +2817,14 @@ function desenharEnxofre(indices) {
   const rotulos = indices.map((i) => rotuloMes(p[i]));
   const v = (campo, i) => noMesInsumos(prod[campo], p[i]);
   const pequena = (i) => pequenaInsumo(prod, p[i]);
-  const semPequena = (campo) => indices.map((i) => (pequena(i) ? null : v(campo, i)));
+  const serie = (campo) => indices.map((i) => v(campo, i)), pequenas = indices.map(pequena);
   const corP = corGrupo("P"), corCif = cor("--cif");
   const margem = { padding: { right: estreito() ? 8 : 46 } };
   const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
   legenda("legenda-enxofre", [
     { rotulo: "FOB (no porto de embarque)", corItem: corP, tipo: "linha" },
     { rotulo: "CIF (com frete e seguro)", corItem: corCif, tipo: "linha" },
+    ...itemPequena(pequenas.some(Boolean)),
   ]);
   const frase = frasePrecoEnxofre(indices), fraseT = fraseVolumeInsumo("enxofre", indices);
   texto("resumo-enxofre", frase);
@@ -2817,7 +2833,7 @@ function desenharEnxofre(indices) {
   document.getElementById("grafico-enxofre-t").setAttribute("aria-label", `${prod.nome}: toneladas importadas por mês, ${intervalo}. A tabela abaixo traz os valores. ${fraseT}`);
   novoGrafico("grafico-enxofre", {
     type: "line",
-    data: { labels: rotulos, datasets: [linhaInsumo("CIF", semPequena("cif"), corCif, "CIF"), linhaInsumo("FOB", semPequena("fob"), corP, "FOB")] },
+    data: { labels: rotulos, datasets: [linhaInsumo("CIF", serie("cif"), corCif, "CIF", false, pequenas), linhaInsumo("FOB", serie("fob"), corP, "FOB", false, pequenas)] },
     options: {
       responsive: true, maintainAspectRatio: false,
       layout: margem,
@@ -2832,7 +2848,9 @@ function desenharEnxofre(indices) {
           external: dicaExterna((pontos) => {
             const i = indices[pontos[0].dataIndex];
             const linhas = pontos.map((d) => ({ corSerie: d.dataset.borderColor, valor: porTonelada(d.raw), serie: d.dataset.label }));
-            return { titulo: pontos[0].label, linhas, extras: [`Frete: ${porTonelada(v("frete", i))}`, `Importado: ${toneladas(v("t", i))}`] };
+            const extras = [`Frete: ${porTonelada(v("frete", i))}`, `Importado: ${toneladas(v("t", i))}`];
+            if (pequena(i)) extras.push(avisoPequena(prod));
+            return { titulo: pontos[0].label, linhas, extras };
           }),
         },
       },
@@ -2851,7 +2869,7 @@ function desenharRocha(indices) {
   const rotulos = indices.map((i) => rotuloMes(p[i]));
   const v = (serie, i) => noMesInsumos(serie, p[i]);
   const pequena = (i) => pequenaInsumo(prod, p[i]);
-  const semPequena = (serie) => indices.map((i) => (pequena(i) ? null : v(serie, i)));
+  const serie = (s) => indices.map((i) => v(s, i)), pequenas = indices.map(pequena);
   const corP = corGrupo("P"), corCif = cor("--cif"), corBm = cor("--texto");
   const margem = { padding: { right: estreito() ? 8 : 92 } };
   const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
@@ -2859,6 +2877,7 @@ function desenharRocha(indices) {
     { rotulo: "FOB Brasil (no embarque)", corItem: corP, tipo: "linha" },
     { rotulo: "CIF Brasil (com frete e seguro)", corItem: corCif, tipo: "linha" },
     { rotulo: `Banco Mundial: ${ref.serie}, ${ref.base} (${ref.comparacao})`, corItem: corBm, tipo: "tracejada" },
+    ...itemPequena(pequenas.some(Boolean)),
   ]);
   const frase = fraseRocha(indices), fraseT = fraseVolumeInsumo("rocha", indices);
   texto("resumo-rocha", frase);
@@ -2871,7 +2890,7 @@ function desenharRocha(indices) {
     const extras = [`Base: ${ref.base} (${ref.comparacao})`, `Importado: ${toneladas(v(prod.t, i))}`];
     const usd = v(ref.spread_usd_t, i), s = v(ref.spread_pct, i);
     if (!nulo(s)) extras.push(`Spread: ${comSinal(s, fmt1, "+")}%${nulo(usd) ? "" : ` (${sinalDe(usd, fmt0, "+")}US$ ${fmt0.format(Math.abs(usd))}/t)`}`);
-    if (pequena(i)) extras.push(`Amostra pequena (menos de ${fmt0.format(prod.corte_amostra_t)} t): FOB ${porTonelada(v(prod.fob, i))}, CIF ${porTonelada(v(prod.cif, i))}, fora das linhas`);
+    if (pequena(i)) extras.push(`${avisoPequena(prod)}; sem spread`);
     return { titulo: pontos[0].label, linhas, extras };
   });
   novoGrafico("grafico-rocha", {
@@ -2880,8 +2899,8 @@ function desenharRocha(indices) {
       labels: rotulos,
       datasets: [
         linhaInsumo("Banco Mundial", indices.map((i) => v(ref.bm, i)), corBm, "Pink Sheet", true),
-        linhaInsumo("CIF Brasil", semPequena(prod.cif), corCif, "CIF"),
-        linhaInsumo("FOB Brasil", semPequena(prod.fob), corP, "FOB"),
+        linhaInsumo("CIF Brasil", serie(prod.cif), corCif, "CIF", false, pequenas),
+        linhaInsumo("FOB Brasil", serie(prod.fob), corP, "FOB", false, pequenas),
       ],
     },
     options: {
@@ -2905,8 +2924,10 @@ function desenharRocha(indices) {
 function desenharCustoMap(indices) {
   const b = dados.insumos, c = b.custo_map, p = periodos();
   const rotulos = indices.map((i) => rotuloMes(p[i]));
-  const usavel = (i) => custoUsavel(p[i]);
-  const serie = (campo) => indices.map((i) => (usavel(i) ? custoMapNoMes(campo, p[i]) : null));
+  // mês de amostra pequena entra como ponto vazado (fora das frases e da média), com o valor
+  const pequenas = indices.map((i) => custoMapNoMes("amostra_pequena", p[i]) === true);
+  const temPreco = (i) => ["enxofre", "rocha"].every((k) => !nulo(noMesInsumos(b.produtos[k].cif, p[i])));
+  const serie = (campo) => indices.map((i) => (temPreco(i) ? custoMapNoMes(campo, p[i]) : null));
   const corP = corGrupo("P"), corCusto = cor("--cif");
   const margem = { padding: { right: estreito() ? 8 : 64 } };
   const intervalo = `de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`;
@@ -2915,16 +2936,17 @@ function desenharCustoMap(indices) {
   legenda("legenda-custo-map", [
     { rotulo: `Custo de insumo: enxofre × ${fmtCoef.format(c.coef_enxofre)} + rocha × ${fmtCoef.format(c.coef_rocha)}`, corItem: corCusto, tipo: "area" },
     { rotulo: `CIF do MAP (NCM ${c.ncms_map.join(", ")})`, corItem: corP, tipo: "linha" },
+    ...itemPequena(pequenas.some(Boolean)),
   ]);
   const frase = fraseCustoMap(indices), fraseR = fraseRazaoMap(indices);
   texto("resumo-custo-map", frase);
   texto("resumo-razao-map", fraseR);
   document.getElementById("grafico-custo-map").setAttribute("aria-label", `Custo de insumo por tonelada de MAP (enxofre e rocha fosfática, no porto) e CIF do MAP, em US$ por tonelada, ${intervalo}. A tabela abaixo traz os valores. ${frase}`);
   document.getElementById("grafico-razao-map").setAttribute("aria-label", `Custo de insumo ÷ CIF do MAP, em porcentagem, ${intervalo}, com a média dos meses do período tracejada. A tabela abaixo traz os valores. ${fraseR}`);
-  const custo = { ...linhaInsumo("Custo de insumo", serie("custo"), corCusto, "Insumo"), fill: "origin", backgroundColor: comAlfa(corCusto, 0.14) };
+  const custo = { ...linhaInsumo("Custo de insumo", serie("custo"), corCusto, "Insumo", false, pequenas), fill: "origin", backgroundColor: comAlfa(corCusto, 0.14) };
   novoGrafico("grafico-custo-map", {
     type: "line",
-    data: { labels: rotulos, datasets: [linhaInsumo("CIF do MAP", serie("cif_map"), corP, "MAP"), custo] },
+    data: { labels: rotulos, datasets: [linhaInsumo("CIF do MAP", serie("cif_map"), corP, "MAP", false, pequenas), custo] },
     options: {
       responsive: true, maintainAspectRatio: false,
       layout: margem,
@@ -2943,7 +2965,9 @@ function desenharCustoMap(indices) {
               const cif = noMesInsumos(b.produtos[k].cif, periodo);
               return `${nomes[k]}: ${porTonelada(cif)} × ${fmtCoef.format(coefs[k])} = ${porTonelada(nulo(cif) ? null : cif * coefs[k])}`;
             });
-            return { titulo: pontos[0].label, linhas, extras: [...partes, `Custo ÷ CIF do MAP: ${pct(100 * custoMapNoMes("razao", periodo))}`] };
+            const extras = [...partes, `Custo ÷ CIF do MAP: ${pct(100 * custoMapNoMes("razao", periodo))}`];
+            if (pequenas[pontos[0].dataIndex]) extras.push(avisoPequenaCusto(periodo));
+            return { titulo: pontos[0].label, linhas, extras };
           }),
         },
       },
@@ -2955,8 +2979,10 @@ function desenharCustoMap(indices) {
   legenda("legenda-razao-map", [
     { rotulo: "Custo de insumo ÷ CIF do MAP", corItem: corP, tipo: "linha" },
     ...(meses.length > 1 ? [{ rotulo: "Média dos meses do período", tipo: "limiar" }] : []),
+    ...itemPequena(pequenas.some(Boolean)),
   ]);
-  const razao = { ...linhaInsumo("Custo ÷ CIF do MAP", indices.map((i) => (usavel(i) ? 100 * custoMapNoMes("razao", p[i]) : null)), corP, null), fill: "origin", backgroundColor: comAlfa(corP, 0.1) };
+  const razoes = serie("razao").map((r) => (nulo(r) ? null : 100 * r));
+  const razao = { ...linhaInsumo("Custo ÷ CIF do MAP", razoes, corP, null, false, pequenas), fill: "origin", backgroundColor: comAlfa(corP, 0.1) };
   novoGrafico("grafico-razao-map", {
     type: "line",
     data: { labels: rotulos, datasets: [razao] },
@@ -2977,7 +3003,8 @@ function desenharCustoMap(indices) {
               titulo: pontos[0].label,
               linhas: [{ corSerie: corP, valor: pct(pontos[0].raw), serie: "do CIF do MAP" }],
               extras: [`Custo de insumo ${porTonelada(custoMapNoMes("custo", periodo))} · CIF do MAP ${porTonelada(custoMapNoMes("cif_map", periodo))}`,
-                ...(meses.length > 1 ? [`Média dos meses do período: ${pct(media)}`] : [])],
+                ...(meses.length > 1 ? [`Média dos meses do período: ${pct(media)}`] : []),
+                ...(pequenas[pontos[0].dataIndex] ? [avisoPequenaCusto(periodo)] : [])],
             };
           }),
         },

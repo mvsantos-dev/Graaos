@@ -966,8 +966,9 @@ enxofre. O Brasil importa os dois insumos, e o preço deles ajuda a ler o do fó
   não o preço ao produtor.
 - **Amostra pequena:** mês com menos de 30 mil t de enxofre ou de rocha
   (`INSUMOS_CORTE_AMOSTRA_T`: os dois chegam em poucos navios grandes) ou de 10 mil t de MAP fica
-  fora dos gráficos e continua no CSV; nele, o spread da rocha fica vazio e o custo de insumo fica
-  marcado.
+  fora das frases e das médias. No gráfico, o valor aparece como ponto vazado, ligado por um
+  trecho pontilhado, e a dica diz quantas toneladas vieram; no CSV, o spread da rocha fica vazio e
+  o custo de insumo fica marcado.
 - **Fora dos totais:** os insumos ficam em `data/raw_insumos/`, com NCMs próprios
   (`data/ncm_insumos.csv`); os totais de fertilizantes não mudam, e o transform recusa um NCM de
   enxofre ou rocha em `data/raw/`.

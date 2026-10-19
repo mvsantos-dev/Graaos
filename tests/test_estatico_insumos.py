@@ -106,7 +106,7 @@ def test_preco_do_enxofre_com_amostra_pequena(falsos):
     prod["amostra_pequena"][-1], prod["t"][-1], prod["cif"][-1] = True, 5_000, 999.0
     prod["amostra_pequena"][-13], prod["cif"][-13] = True, 1.0  # o ano anterior fora: nem comparação nem extremo
     frase = I.frase_preco_enxofre(falsos, _todos(falsos))
-    assert frase.startswith(f"Em mar/2026, a importação de enxofre foi de {F.toneladas(5_000)}, menos de 30.000 t: amostra pequena, fora do gráfico de preço.")
+    assert frase.startswith(f"Em mar/2026, a importação de enxofre foi de {F.toneladas(5_000)}, menos de 30.000 t: amostra pequena, ponto vazado no gráfico de preço.")
     assert "US$ 999" not in frase and "US$ 1/t" not in frase
     prod["amostra_pequena"][-2] = False
     prod["cif"][-2] = 230.0
@@ -161,8 +161,8 @@ def test_custo_de_insumo_fora_dos_graficos(falsos):
     c = falsos["insumos"]["custo_map"]
     c["amostra_pequena"][-1] = True
     frase = I.frase_custo_map(falsos, _todos(falsos))
-    assert frase.startswith("Em mar/2026, o custo de insumo fica fora dos gráficos: amostra pequena (menos de 30.000 t de enxofre, 30.000 t de "
-                            "rocha fosfática ou 10.000 t de MAP no mês). Em fev/2026, o último mês do período nos gráficos, o custo de insumo")
+    assert frase.startswith("Em mar/2026, o custo de insumo fica fora da conta: amostra pequena (menos de 30.000 t de enxofre, 30.000 t de "
+                            "rocha fosfática ou 10.000 t de MAP no mês; ponto vazado nos gráficos). Em fev/2026, o último mês do período nos gráficos, o custo de insumo")
     c["amostra_pequena"][-1], c["custo"][-1], c["razao"][-1] = False, None, None
     assert I.frase_custo_map(falsos, _todos(falsos)).startswith(
         "Em mar/2026, não há custo de insumo: falta o preço de enxofre, de rocha fosfática ou de MAP no mês. Em fev/2026")
