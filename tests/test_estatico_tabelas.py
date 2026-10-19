@@ -32,6 +32,12 @@ def _linhas(html: str) -> list[list[str]]:
     return [[re.sub(r"<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", tr)] for tr in re.findall(r"<tr>(.*?)</tr>", corpo)]
 
 
+def _n(f, v) -> str:
+    """Valor formatado ou "–": o último mês pode vir sem algum número (os testes rodam sobre o mês
+    recém-gravado e não supõem que todas as séries o tenham)."""
+    return F.TRACO if v is None else f(v)
+
+
 def _cabecalho(html: str) -> list[str]:
     return re.findall(r"<th(?:\s[^>]*)?>(.*?)</th>", html.split("</thead>", 1)[0])
 
@@ -78,8 +84,8 @@ def test_toneladas_com_os_quatro_grupos_e_o_total():
 def test_precos_e_frete_batem_com_as_metricas_do_resumo():
     i = len(P) - 1
     m = D.metricas(DADOS, "TOTAL", [i])
-    assert _linhas(T.precos(DADOS, V))[-1] == [F.rotulo_mes(P[i]), F.fmt0(m["preco_fob"]), F.fmt0(m["preco_cif"])]
-    assert _linhas(T.frete(DADOS, V))[-1] == [F.rotulo_mes(P[i]), F.fmt0(m["frete_t"]), F.pct(m["frete_cif"])]
+    assert _linhas(T.precos(DADOS, V))[-1] == [F.rotulo_mes(P[i]), _n(F.fmt0, m["preco_fob"]), _n(F.fmt0, m["preco_cif"])]
+    assert _linhas(T.frete(DADOS, V))[-1] == [F.rotulo_mes(P[i]), _n(F.fmt0, m["frete_t"]), F.pct(m["frete_cif"])]
 
 
 def test_ranking_de_origens_e_portos_do_ano_do_fim_do_periodo():
@@ -90,7 +96,7 @@ def test_ranking_de_origens_e_portos_do_ano_do_fim_do_periodo():
     assert _cabecalho(origens) == ["#", "País", "Toneladas", "Share", f"Var. t vs {rotulo}", "Var. share", "US$/t FOB"]
     linhas = DADOS["origens"]["dados"][str(ano)]["TOTAL"]
     r = linhas[0]
-    assert _linhas(origens)[0] == ["1", r[1], F.fmt0(r[2]), F.pct(r[3]), F.variacao(r[4]), F.variacao(r[5], " p.p."), F.fmt0(r[6])]
+    assert _linhas(origens)[0] == ["1", r[1], F.fmt0(r[2] or 0), F.pct(r[3]), F.variacao(r[4]), F.variacao(r[5], " p.p."), _n(F.fmt0, r[6])]
     assert _linhas(origens)[-1][:2] == ["", "Outros"]  # "Outros" sem posição
     portos = T.ranking(DADOS, V, "portos")
     assert _cabecalho(portos)[1] == "URF" and len(_cabecalho(portos)) == 6
@@ -117,7 +123,7 @@ def test_rotas_versao_larga_com_barra_na_cor_do_tema_claro():
     assert _cabecalho(rot.html) == ["#", "Origem", "URF", "Toneladas", "Share", "Frete US$/t", "", "Frete no CIF", "Meses"]
     barras = re.findall(r'<span class="barra" style="width: (\d+)px; background: rgba\(98, 80, 214, 0\.5\);"></span>', rot.html)
     assert len(barras) == len(bloco["rotas"])
-    maior = max(r[5] or 0 for r in bloco["rotas"])
+    maior = max([r[5] or 0 for r in bloco["rotas"]] + [1])
     assert max(map(int, barras)) == 64 and barras[0] == str(T._js_round(64 * (bloco["rotas"][0][5] or 0) / maior))
     r = bloco["rotas"][0]
     assert _linhas(rot.html)[0][-1] == f"{r[7]}/{T.n_meses(DADOS, ano)}"
@@ -156,7 +162,8 @@ def test_troca_em_toneladas_de_soja_e_sacas():
     assert _cabecalho(html)[:5] == ["Mês", "Soja US$/t FOB", "KCl US$/t CIF", "KCl t soja/t", "KCl sacas/t"]
     j = tr["periodos"].index(P[-1])
     kcl = tr["produtos"]["kcl"]
-    assert _linhas(html)[-1][1:5] == [F.fmt0(tr["soja_fob"][j]), F.fmt0(kcl["cif"][j]), F.fmt2(kcl["razao"][j]), F.fmt1(kcl["razao"][j] * 1000 / tr["kg_saca"])]
+    assert _linhas(html)[-1][1:5] == [_n(F.fmt0, tr["soja_fob"][j]), _n(F.fmt0, kcl["cif"][j]), _n(F.fmt2, kcl["razao"][j]),
+                                      _n(F.fmt1, None if kcl["razao"][j] is None else kcl["razao"][j] * 1000 / tr["kg_saca"])]
     d = copy.deepcopy(DADOS)
     d["troca"]["produtos"]["kcl"]["razao"][j] = None
     assert _linhas(T.troca(d, V))[-1][3:5] == ["–", "–"]
@@ -195,7 +202,8 @@ def test_tabela_do_mapa_no_ultimo_ano_completo():
     assert len(_linhas(tabelas[0] + "</table>")) == len(r["origens"]) + 1  # + "Outros"
     assert "Outros (menos de 1.000 t ou sem coordenada)" in html and "<td></td><td></td><td></td><td></td></tr>" in html
     assert len(_linhas(tabelas[2] + "</table>")) == len(r["rotas"])
-    assert "Rotas com pelo menos 50 mil t no ano" in html
+    corte = F.numero(mapa["corte_rota_t"][mapa["anos"].index(ano)] / 1000, 0, 1)
+    assert f"Rotas com pelo menos {corte} mil t no ano" in html
     # ano parcial: o corte proporcional e o período no título
     parcial = mapa["anos"][-1]
     m = mapa["n_meses"][-1]
@@ -311,7 +319,7 @@ def test_notas_dizem_o_que_cada_tabela_mostra():
     assert notas["nota-bm"].startswith(f"{kcl['nome']} ({kcl['descricao']}, NCM {', '.join(kcl['ncms'])}) · benchmark: {kcl['serie']}, Banco Mundial")
     assert notas["nota-bm"].endswith(periodo)
     pequenos = sum(1 for p, x in zip(DADOS["benchmark"]["periodos"], kcl["amostra_pequena"]) if x and p in P)
-    assert (f" {pequenos} {'mês' if pequenos == 1 else 'meses'} com menos de 10.000 t" in notas["nota-spread"]) == (pequenos > 0)
+    assert (f" {pequenos} {'mês' if pequenos == 1 else 'meses'} com menos de {F.fmt0(DADOS['benchmark']['corte_amostra_t'])} t" in notas["nota-spread"]) == (pequenos > 0)
     assert "(na tabela, com *)" in notas["nota-teores"] and notas["nota-teores"].endswith(f"Fonte: {DADOS['nutrientes']['fonte']}.")
     assert "Ureia 46% de N" in notas["nota-teores"] and "No MAP, o N que vem junto" in notas["nota-teores"]
     assert notas["nota-nutrientes"].startswith("Ureia, MAP, KCl · US$ por tonelada de nutriente")
