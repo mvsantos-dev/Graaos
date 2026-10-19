@@ -6,6 +6,7 @@ suíte logo depois de gravar um mês novo, e um valor fixo derrubaria a atualiza
 
 import copy
 import json
+import re
 import unicodedata
 import subprocess
 import sys
@@ -584,6 +585,93 @@ def test_texto_de_cada_mes_fica_em_aaaa_mm_json(tmp_path, ultimo_mes):
     assert antigo["mes"] == "2024-03" and antigo["arquivo"] == "boletins/2024-03.md" and antigo["paragrafos"]
     assert (tmp_path / "latest.json").read_text(encoding="utf-8") == latest  # o latest continua no último mês
     assert sorted(p.name for p in tmp_path.iterdir()) == sorted(["2024-03.md", "2024-03.json", f"{ultimo_mes}.md", f"{ultimo_mes}.json", "latest.json"])
+
+
+# --- Parágrafo de sinais (frases-modelo do programa, fora do texto da IA) ----------------------
+
+
+def test_mock_traz_o_paragrafo_de_sinais_sem_mudar_o_texto_da_ia(tmp_path, ultimo_mes, fatos):
+    from src import sinais
+    from src.estatico import sinais as ES
+
+    assert boletim.main(["--mock", "--saida", str(tmp_path)]) == 0
+    latest = json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))
+    md = (tmp_path / f"{ultimo_mes}.md").read_text(encoding="utf-8")
+    painel, _ = boletim.carregar(config.PROCESSED_DIR)
+    esperado = boletim.sinais_do_boletim(painel, ultimo_mes)
+    assert latest["sinais"] == esperado
+    # os mesmos sinais do data/sinais.json do mês, na ordem dos cards do site
+    assert [s["id"] for s in esperado["itens"]] == [s["id"] for s in ES.ordenar(sinais.sinais_do_mes(sinais.ler(), ultimo_mes))]
+    assert "## Sinais do mês" in md and esperado["paragrafo"] in md
+    assert all(f"`{s['id']}`" in md for s in esperado["itens"])
+    # a lista completa do .md leva as ressalvas e a fonte de todos os sinais, não só dos 6 do parágrafo
+    secao = md.split("## Sinais do mês", 1)[1].split("Números citados", 1)[0]
+    tipos = {s["id"].rsplit("/", 1)[1] for s in esperado["itens"]}
+    if esperado["itens"]:
+        assert esperado["notas"] in secao and esperado["notas"].endswith(f"Fonte: {'; '.join(ES.fontes([{'tipo': t} for t in tipos]))}.")
+    if "troca_p90" in tipos:
+        assert "no porto" in secao and "Não é o preço ao produtor." in secao
+    if "internacional" in tipos:
+        assert "Banco Mundial (Pink Sheet)" in secao and "outro momento de contrato" in secao
+    # o texto da IA é o mesmo de sem o parágrafo: ele não passa pela IA nem pela validação
+    sem = tmp_path / "sem"
+    boletim.escrever(boletim.gerar(fatos, boletim.ProvedorMock()), fatos, sem, "mock", True)
+    antes = json.loads((sem / "latest.json").read_text(encoding="utf-8"))
+    for campo in ("titulo", "lead", "paragrafos", "marcadores", "nota", "fonte", "rodape"):
+        assert latest.get(campo) == antes.get(campo), campo
+    assert "sinais" not in antes
+    assert not any(esperado["paragrafo"] in p for p in latest["paragrafos"])
+    # e o pacote de fatos da IA continua sem nada dos sinais
+    assert not any(k.startswith("sinal") for k in fatos)
+
+
+def test_paragrafo_de_sinais_so_tem_numeros_do_programa(ultimo_mes):
+    from src.estatico import sinais as ES
+
+    painel, _ = boletim.carregar(config.PROCESSED_DIR)
+    for mes in painel["mensal"]["periodos"][-6:]:
+        s = boletim.sinais_do_boletim(painel, mes)
+        texto = s["paragrafo"]
+        assert texto.startswith(f"Sinais de {boletim.mes_extenso(mes)}, pelas regras fixas do programa (sem IA)")
+        assert texto.endswith(f"Fonte: {s['fonte']}.") and s["fonte"].startswith("Comex Stat/MDIC")
+        assert s["pagina"] == f"{boletim.DASHBOARD}boletim/{mes}/#sinais"
+        mostrados = s["itens"][: ES.MAX_CARTOES]
+        resto = texto
+        for item in mostrados:
+            nivel = "sinal forte" if item["nivel"] == "forte" else "sinal de atenção"
+            assert f"{item['frase']}, {nivel}." in resto
+            resto = resto.replace(f"{item['frase']}, {nivel}.", "")
+        for item in s["itens"][ES.MAX_CARTOES:]:
+            assert item["frase"] not in texto  # os outros ficam na página do boletim
+        # o que sobra de número: o ano do mês e as contagens (sinais, fortes, mostrados e o resto)
+        n, k = len(s["itens"]), sum(i["nivel"] == "forte" for i in s["itens"])
+        contas = sorted(re.findall(r"\d+", resto))
+        permitidos = {mes[:4], str(n), str(k), str(len(mostrados)), str(n - len(mostrados))}
+        assert set(contas) <= permitidos, (mes, contas)
+        if any(i["id"].endswith("/troca_p90") for i in mostrados):
+            assert "no porto" in texto and "Não é o preço ao produtor." in texto
+        if any(i["id"].endswith("/internacional") for i in mostrados):
+            assert "Banco Mundial (Pink Sheet)" in s["fonte"] and "outro momento de contrato" in texto
+        # as notas da lista completa: as ressalvas de todos os sinais do mês e a fonte deles
+        if any(i["id"].endswith("/troca_p90") for i in s["itens"]):
+            assert "no porto" in s["notas"] and "Não é o preço ao produtor." in s["notas"]
+        if any(i["id"].endswith("/internacional") for i in s["itens"]):
+            assert "outro momento de contrato" in s["notas"] and s["notas"].endswith("Banco Mundial (Pink Sheet).")
+        assert s["notas"].startswith(("A troca", "A Pink Sheet", "Fonte: Comex Stat/MDIC")) and not re.search(r"\d", s["notas"])
+        assert "R$" not in texto and "ágio" not in texto.lower()
+
+
+def test_mes_sem_sinais_tem_o_paragrafo_dizendo_isso(tmp_path):
+    from src import sinais
+
+    painel, _ = boletim.carregar(config.PROCESSED_DIR)
+    vazio = next(m for m in painel["mensal"]["periodos"] if not sinais.sinais_do_mes(sinais.ler(), m))
+    s = boletim.sinais_do_boletim(painel, vazio)
+    assert s["itens"] == [] and "nenhum sinal de preço ou de volume no mês" in s["paragrafo"]
+    assert boletim.main(["--mock", "--mes", vazio, "--saida", str(tmp_path)]) == 0
+    md = (tmp_path / f"{vazio}.md").read_text(encoding="utf-8")
+    assert s["paragrafo"] in md and "Todos os sinais do mês" not in md
+    assert json.loads((tmp_path / f"{vazio}.json").read_text(encoding="utf-8"))["sinais"] == s
 
 
 def test_links_apontam_para_o_repositorio_em_uso(monkeypatch):

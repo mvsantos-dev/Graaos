@@ -13,7 +13,7 @@
 
 | Módulo | Situação |
 | --- | --- |
-| **Fertilizantes**: importações brasileiras de adubos (N, P, K e NPK), com volumes, origens, portos, rotas e frete, preços, mercado internacional e relação de troca com a soja | no ar em [radar.graaos.cloud](https://radar.graaos.cloud/) |
+| **Fertilizantes**: importações brasileiras de adubos (N, P, K e NPK), com volumes, origens, portos, rotas e frete, preços, mercado internacional, relação de troca com a soja, insumos do fósforo (enxofre e rocha fosfática) e sinais automáticos de preço e de volume | no ar em [radar.graaos.cloud](https://radar.graaos.cloud/) |
 | **Logística portuária**: fila, espera e terminais nos portos | planejado |
 | **Grãos** | planejado |
 
@@ -57,7 +57,11 @@ Para a [relação de troca](#relação-de-troca-no-porto), o projeto baixa tamb�
 exportação mensal de soja em grão (NCM 12019000), com valor US$ FOB e peso. Para a
 [comparação com o mercado internacional](#brasil-x-mercado-internacional-fase-6), baixa os
 preços mensais de fertilizantes da Pink Sheet do Banco Mundial e a PTAX média mensal do BCB.
-Nenhuma das fontes pede chave.
+Para os [insumos do fósforo](#insumos-do-fósforo), baixa a importação de enxofre (NCM 2503) e de
+rocha fosfática (2510), com as mesmas colunas, gravada à parte: ela não entra em nenhum total de
+fertilizantes. Com tudo isso, o programa calcula todo mês os
+[sinais de preço e de volume](#sinais-de-preço-e-de-volume) de cada produto, com regras fixas e
+sem IA. Nenhuma das fontes pede chave.
 
 ### Produtos acompanhados
 
@@ -73,6 +77,20 @@ A lista completa, com 42 NCMs (inclusive códigos de versões antigas da NCM), e
 [`data/ncm_fertilizantes.csv`](data/ncm_fertilizantes.csv). Ela foi gerada a partir da
 tabela auxiliar de NCM da própria API, com `python -m src.ingest --atualizar-ncm`.
 
+Os insumos do fósforo ficam num grupo à parte, `INSUMOS`, com os NCMs em
+[`data/ncm_insumos.csv`](data/ncm_insumos.csv), gerado do mesmo jeito:
+
+| Posição (SH4) | Conteúdo | Grupo |
+| --- | --- | --- |
+| 2503 | enxofre, a granel e em outras formas | INSUMOS |
+| 2510 | rocha fosfática (fosfatos de cálcio naturais): 2510.10, não moída, e 2510.20, moída | INSUMOS |
+
+Eles não são fertilizantes do capítulo 31: têm seção e sinais próprios e nunca entram nos totais,
+shares, mapas, rotas, estados ou boletins de fertilizantes. Um teste confere que os totais do
+dashboard somam só os NCMs de `data/ncm_fertilizantes.csv`, e o transform recusa um NCM de
+enxofre ou rocha nos dados de fertilizantes. Ácido sulfúrico (2807), ácido fosfórico (2809) e
+amônia (2814) são granéis líquidos e ficam fora do Graaos.
+
 ## Como rodar
 
 Requer Python 3.10 ou mais recente.
@@ -83,10 +101,12 @@ source .venv/bin/activate        # no Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m src.ingest --inicio 2015-01   # baixa só o que falta: Comex Stat, Pink Sheet e PTAX
 python -m src.transform                 # gera as tabelas de data/processed/
+python -m src.sinais                    # grava data/sinais.json (sinais de preço e de volume)
 ```
 
 A ingestão é incremental: só consulta os meses que ainda não estão no disco, uma consulta
-por ano e por série (importação de fertilizantes e exportação de soja), com o mesmo cliente
+por ano e por série (importação de fertilizantes, exportação de soja e importação de enxofre e
+rocha fosfática), com o mesmo cliente
 e o mesmo limite de requisições. Se a API disser que publicou um mês e ele não vier em
 alguma das séries, o comando termina com erro (código 1). Em seguida, baixa a Pink Sheet
 (o arquivo inteiro, a cada vez) e os meses da PTAX que faltam; os detalhes estão em
@@ -111,6 +131,21 @@ Resumo 2015-01 a 2026-09 (Fonte: Comex Stat/MDIC)
     5. 0727600 PORTO DE VITORIA                 23.347.338 t    5,8%
 Resumo soja em grão (NCM 12019000, exportação) 2015-01 a 2026-09 (Fonte: Comex Stat/MDIC)
   Meses: 141 | Total: 988.154.583 t | US$ FOB 421.488.513.355 | US$ 427/t
+Resumo insumos do fósforo (enxofre e rocha fosfática, importação) 2015-01 a 2026-09 (Fonte: Comex Stat/MDIC)
+  Linhas: 4.762 | meses: 141 | NCMs: 6
+  Total: 45.338.614 t | US$ FOB 6.024.406.086 | US$ CIF 7.164.749.332
+  Top 5 países de origem por kg líquido:
+    1. Peru                             11.046.146 t   24,4%
+    2. Estados Unidos                    7.318.683 t   16,1%
+    3. Marrocos                          5.955.383 t   13,1%
+    4. Cazaquistão                       5.225.427 t   11,5%
+    5. Rússia                            3.306.699 t    7,3%
+  Top 5 URFs por kg líquido:
+    1. 0817800 PORTO DE SANTOS                  28.146.478 t   62,1%
+    2. 0917800 PORTO DE PARANAGUA                6.433.519 t   14,2%
+    3. 1017700 PORTO DE RIO GRANDE               4.881.341 t   10,8%
+    4. 0517800 ALF - SALVADOR                    2.549.210 t    5,6%
+    5. 0927700 PORTO DE SAO FRANCISCO DO SUL       881.017 t    1,9%
 Resumo Pink Sheet (Banco Mundial, CC BY 4.0) 2015-01 a 2026-09
   Meses: 141 | 2026-09 em US$/t: ureia 407,5 | dap 800,6 | tsp 690,0 | kcl 367,5 | rocha_fosfatica 170,0
 Resumo PTAX venda, média mensal (BCB, SGS 3698) 2015-01 a 2026-09
@@ -121,10 +156,10 @@ Resumo PTAX venda, média mensal (BCB, SGS 3698) 2015-01 a 2026-09
 | --- | --- |
 | `--inicio AAAA-MM` | primeiro mês (a série mensal começa em 1997-01) |
 | `--fim AAAA-MM` | último mês; o padrão é o último mês publicado em cada fonte |
-| `--serie todas\|fertilizantes\|soja\|benchmark\|cambio` | série a baixar (padrão: `todas`); `benchmark` é a Pink Sheet e `cambio`, a PTAX |
+| `--serie todas\|fertilizantes\|soja\|insumos\|benchmark\|cambio` | série a baixar (padrão: `todas`); `insumos` é a importação de enxofre e rocha fosfática, `benchmark` é a Pink Sheet e `cambio`, a PTAX |
 | `--ultimo-gravado` | só imprime o último mês completo, gravado em todas as séries (o menor entre elas), sem chamar nenhuma fonte; com `--por-serie`, uma linha por série |
 | `--forcar` | baixa de novo meses já gravados (o MDIC e o BCB podem revisar meses recentes; a Pink Sheet é sempre baixada inteira) |
-| `--atualizar-ncm` | regenera `data/ncm_fertilizantes.csv` a partir da API |
+| `--atualizar-ncm` | regenera `data/ncm_fertilizantes.csv` e `data/ncm_insumos.csv` a partir da API (o dos insumos também é gerado quando falta) |
 | `--pausa SEG` | pausa mínima entre chamadas à API do Comex Stat (padrão: 10 s) |
 | `--ssl-inseguro` | último recurso para problemas de certificado; veja [SSL](#ssl) |
 
@@ -133,6 +168,11 @@ Resumo PTAX venda, média mensal (BCB, SGS 3698) 2015-01 a 2026-09
 O [dashboard](https://radar.graaos.cloud/) é uma página estática (`dashboard/index.html`) que lê o
 `data/processed/dashboard.json`. Mostra:
 
+- logo depois do topo, os [sinais do mês](#sinais-de-preço-e-de-volume): até 6 cartões, os fortes
+  primeiro, cada um com a frase do sinal, uma minilinha da série e o link para o gráfico; os
+  mesmos sinais saem no feed Atom [`/sinais.xml`](https://radar.graaos.cloud/sinais.xml), nas
+  páginas `/boletim/AAAA-MM/` e num parágrafo do boletim mensal, com frases-modelo e números
+  inseridos pelo programa (a IA não escreve nenhum deles);
 - o [boletim do mês](#boletim-mensal-com-ia-fase-5), num card no topo, com link para o histórico;
 - KPIs do último mês e do acumulado do ano, comparados com o mesmo período do ano anterior;
 - toneladas mensais por grupo (N, P, K e NPK);
@@ -144,6 +184,10 @@ O [dashboard](https://radar.graaos.cloud/) é uma página estática (`dashboard/
 - preço implícito US$/t FOB x CIF e frete US$/t, com a legenda do que é FOB e CIF ao lado;
 - [custo por nutriente](#custo-por-nutriente-custo-por-molécula): quanto custa, no porto, a
   tonelada de N, de P₂O₅ e de K₂O em cada fertilizante, em US$ e em R$;
+- [insumos do fósforo](#insumos-do-fósforo), depois dos preços: enxofre (volume e preço), rocha
+  fosfática (Brasil x Pink Sheet) e custo de insumo por tonelada de MAP contra o CIF do MAP, com
+  a razão no tempo; a mesma seção tem uma página própria em
+  [`/insumos/`](https://radar.graaos.cloud/insumos/);
 - [relação de troca no porto](#relação-de-troca-no-porto) entre soja e KCl, ureia e MAP, com a
   média histórica como referência;
 - [Brasil x mercado internacional](#brasil-x-mercado-internacional-fase-6): preço FOB e CIF do
@@ -191,7 +235,8 @@ O workflow [`pages.yml`](.github/workflows/pages.yml) publica o dashboard no Git
 <https://mvsantos-dev.github.io/Graaos/>, o espelho do site principal, a
 cada push na `main` que altere `dashboard/`, o `dashboard.json`, os `boletins/*.json` (o
 `latest.json` é publicado como `boletim.json`), o `build_site.sh`, o `src/estatico/` ou os
-`src/boletim.py`, `src/config.py` e `src/llm.py`, ou manualmente, em
+`src/boletim.py`, `src/config.py`, `src/llm.py`, `src/sinais.py` e `src/eventos.py`, o
+`data/sinais.json` ou o `data/eventos.yml`, ou manualmente, em
 Actions → Pages → Run workflow. Ele não usa nenhum segredo; o único pré-requisito é, em
 **Settings → Pages**, escolher **Source: GitHub Actions**.
 
@@ -347,15 +392,16 @@ entre na tabela `URF_LOCAL` de `src/mapa.py` e o `python -m src.mapa urfs` seja 
 ## Atualização automática (fase 4)
 
 O workflow [`atualizacao.yml`](.github/workflows/atualizacao.yml) mantém os dados em dia
-sem intervenção. São quatro séries, de três fontes que publicam o mês anterior nos primeiros
-dias úteis: importação de fertilizantes e exportação de soja (Comex Stat), preços
-internacionais (Pink Sheet) e câmbio (PTAX). O workflow roda uma vez por dia, do dia 1 ao
+sem intervenção. São cinco séries, de três fontes que publicam o mês anterior nos primeiros
+dias úteis: importação de fertilizantes, exportação de soja e importação de enxofre e rocha
+fosfática (Comex Stat), preços internacionais (Pink Sheet) e câmbio (PTAX). O workflow roda uma vez por dia, do dia 1 ao
 dia 15 de cada mês (11h17 UTC):
 
-1. Confere se o mês anterior já está gravado nas quatro séries
+1. Confere se o mês anterior já está gravado nas cinco séries
    (`python -m src.ingest --ultimo-gravado`). Se estiver, encerra sem chamar nenhuma fonte:
    na prática, as checagens param assim que o mês novo entra.
-2. Se faltar, roda a ingestão incremental das quatro séries, o `python -m src.transform` e
+2. Se faltar, roda a ingestão incremental das cinco séries, o `python -m src.transform`, o
+   `python -m src.sinais` (que refaz o [`data/sinais.json`](#sinais-de-preço-e-de-volume)) e
    os testes. A Pink Sheet e a PTAX vêm primeiro, e o Comex Stat só até o menor mês das
    duas: um mês do Comex sem benchmark ou sem câmbio não chega ao dashboard nem ao boletim.
 3. Se o último mês completo avançou, ou se o boletim dele ainda não existe, gera o
@@ -363,7 +409,7 @@ dia 15 de cada mês (11h17 UTC):
 4. Faz um commit `chore(dados): atualização AAAA-MM` como `github-actions[bot]`, só com
    arquivos de `data/` e `boletins/`, e publica o dashboard.
 
-**Mês completo.** Um mês só entra quando está gravado nas quatro séries: vale o menor
+**Mês completo.** Um mês só entra quando está gravado nas cinco séries: vale o menor
 entre os últimos meses de cada uma (`--ultimo-gravado`; com `--por-serie`, uma linha por
 série). Como as fontes publicam em dias diferentes, é normal o mês chegar aos poucos. Se
 faltar alguma, nada é commitado e o run fica verde, com um aviso que diz qual série falta e
@@ -619,6 +665,11 @@ A exportação de soja fica em `data/raw_soja/ano=AAAA/exportacoes.parquet`, uma
 mês, com `mes`, `co_ncm` (12019000), `vl_fob` e `kg_liquido`. Para ler:
 `from src.ingest import ler_soja`.
 
+As importações de enxofre e rocha fosfática ficam em
+`data/raw_insumos/ano=AAAA/importacoes.parquet`, com as mesmas colunas da tabela acima, longe de
+`data/raw/` para nunca entrarem nos totais de fertilizantes. Para ler:
+`from src.ingest import ler_insumos`.
+
 A Pink Sheet fica em `data/raw_benchmark/pink_sheet_mensal.csv`, uma linha por mês, com o
 preço em US$ por tonelada métrica, nominal, de `ureia`, `dap`, `tsp`, `kcl` e
 `rocha_fosfatica`, e o `fonte.json` ao lado registra a edição (data de atualização e a
@@ -627,8 +678,8 @@ o sha256 do arquivo baixado e a licença. A PTAX fica em
 `data/raw_cambio/ptax_venda_media_mensal.csv`, com `mes` e `brl_por_usd`. Para ler:
 `from src.benchmark import ler_pink, ler_ptax`.
 
-A série de 2015-01 a 2026-09 tem 61.460 linhas e ocupa 1,6 MB (mais 37 KB da soja e 8 KB
-da Pink Sheet e da PTAX), por isso `data/raw/` e as outras pastas de dados brutos continuam
+A série de 2015-01 a 2026-09 tem 61.460 linhas e ocupa 1,6 MB (mais 37 KB da soja, 290 KB do
+enxofre e da rocha e 8 KB da Pink Sheet e da PTAX), por isso `data/raw/` e as outras pastas de dados brutos continuam
 versionados. Se passar de ~20 MB, a pasta vai para o `.gitignore` e os dados
 passam a ser gerados localmente com os comandos acima. Os totais anuais de kg, US$ FOB,
 US$ CIF, frete e seguro foram conferidos, até a unidade, com uma consulta agregada
@@ -651,7 +702,9 @@ independente à API, que filtra pelas posições SH4 em vez da lista de NCMs.
 | `benchmark_mensal.csv` | mês × produto | [Brasil x mercado internacional](#brasil-x-mercado-internacional-fase-6): toneladas, preços FOB e CIF do Brasil, benchmark e base, spread FOB, custo posto, spread comparável (US$/t e %), PTAX, CIF em reais e a marca de amostra pequena |
 | `share_uf_ano.csv` | ano × grupo × UF | [importações por estado](#importações-por-estado): toneladas, share e variação sobre o mesmo período do ano anterior, por UF de destino |
 | `custo_nutriente_mensal.csv` | mês × produto | [custo por nutriente](#custo-por-nutriente-custo-por-molécula): teores, toneladas, CIF, custo por tonelada de nutriente com e sem o crédito de N, custo por ponto, PTAX e custo em reais |
-| `dashboard.json` | — | export compacto para o dashboard: séries mensais, resumo anual, top 10 origens e URFs, rotas, sazonalidade, relação de troca, benchmark, estados e custo por nutriente |
+| `insumos_mensal.csv` | mês × insumo | [insumos do fósforo](#insumos-do-fósforo): toneladas, US$ FOB, CIF e frete de enxofre e rocha fosfática, preços em US$/t, amostra pequena e, na rocha, a Pink Sheet e o spread FOB×FOB |
+| `custo_insumo_map_mensal.csv` | mês | [custo de insumo por tonelada de MAP](#insumos-do-fósforo): coeficientes, CIF do enxofre, da rocha e do MAP, custo de cada insumo, custo total e razão sobre o CIF do MAP, com as marcas de amostra pequena |
+| `dashboard.json` | — | export compacto para o dashboard: séries mensais, resumo anual, top 10 origens e URFs, rotas, sazonalidade, relação de troca, benchmark, estados, custo por nutriente e insumos do fósforo |
 
 Como os números são calculados:
 
@@ -799,8 +852,9 @@ correspondência é fixa:
 | DAP (fosfato diamônico) | 31053000, 31053010, 31053090 | DAP | FOB Golfo dos EUA | FOB×FOB |
 | TSP (superfosfato triplo) | 31031030, 31031100 | TSP | importação no Golfo dos EUA | CIF×CFR |
 
-A rocha fosfática (Phosphate rock, FOB Norte da África) é baixada e guardada, mas não entra
-na comparação: ela é do capítulo 25 da NCM, fora do capítulo 31 acompanhado pelo projeto.
+A rocha fosfática (Phosphate rock, FOB Norte da África) é do capítulo 25 da NCM e fica fora
+desta tabela: ela é comparada com a rocha importada pelo Brasil, FOB×FOB, em
+[Insumos do fósforo](#insumos-do-fósforo).
 
 ```text
 preço FOB Brasil (US$/t)   = US$ FOB ÷ toneladas, no mês, somando os NCMs do produto
@@ -883,6 +937,156 @@ Código: [MIT](LICENSE) · Dados tratados: [CC BY 4.0](data/LICENSE)
 
 O crédito dos dados tratados é "Graaos (github.com/mvsantos-dev/graaos)". Os dados de origem
 seguem as licenças das fontes, acima, mesmo quando aparecem nos arquivos tratados.
+
+## Insumos do fósforo
+
+O MAP, o DAP e os superfosfatos são feitos de rocha fosfática e de ácido sulfúrico, que sai do
+enxofre. O Brasil importa os dois insumos, e o preço deles ajuda a ler o do fósforo importado
+(`src/insumos.py`):
+
+- **Séries:** toneladas, US$ FOB, CIF e frete de cada insumo, por mês, e as maiores origens de
+  cada ano (`insumos_mensal.csv` e bloco "insumos" do `dashboard.json`). Os meses são os mesmos
+  das importações de fertilizantes.
+- **Rocha x Pink Sheet:** FOB da rocha importada pelo Brasil contra a série Phosphate rock (FOB
+  Norte da África) da Pink Sheet, FOB×FOB. Como na [fase 6](#limitações), o spread não é ágio: o
+  benchmark é de outro lugar e de outro momento de contrato, e o spread mistura origem, teor da
+  rocha, prazo de contrato e defasagem.
+- **Custo de insumo por tonelada de MAP** (`custo_insumo_map_mensal.csv`):
+
+  ```text
+  custo de insumo (US$/t de MAP) = CIF do enxofre × 0,45 + CIF da rocha fosfática × 1,7
+  razão                          = custo de insumo ÷ CIF do MAP importado (NCM 31054000) no mesmo mês
+  ```
+
+  Os coeficientes (`INSUMOS_COEF_ENXOFRE` e `INSUMOS_COEF_ROCHA`, em `src/config.py`) são uma
+  aproximação técnica: as toneladas de enxofre e de rocha por tonelada de MAP, que mudam com o
+  teor da rocha e o processo de cada fábrica. **É uma aproximação, não o custo de nenhuma
+  empresa:** ficam de fora o nitrogênio do MAP, a energia, a conversão, os impostos e o frete
+  interno, e o insumo de origem nacional não entra no preço médio. Os preços são CIF no porto,
+  não o preço ao produtor.
+- **Amostra pequena:** mês com menos de 30 mil t de enxofre ou de rocha
+  (`INSUMOS_CORTE_AMOSTRA_T`: os dois chegam em poucos navios grandes) ou de 10 mil t de MAP fica
+  fora dos gráficos e continua no CSV; nele, o spread da rocha fica vazio e o custo de insumo fica
+  marcado.
+- **Fora dos totais:** os insumos ficam em `data/raw_insumos/`, com NCMs próprios
+  (`data/ncm_insumos.csv`); os totais de fertilizantes não mudam, e o transform recusa um NCM de
+  enxofre ou rocha em `data/raw/`.
+
+Fonte: Comex Stat/MDIC; Banco Mundial (Pink Sheet).
+
+## Sinais de preço e de volume
+
+`python -m src.sinais` lê o `data/processed/dashboard.json` e grava em `data/sinais.json` os
+sinais automáticos de alta e de queda de cada produto acompanhado, mês a mês, desde o início da
+série. São regras fixas em Python (`src/sinais.py`), sem IA. Cada mês só usa os dados até ele: o
+histórico mostra o que teria disparado em cada mês, sem olhar o futuro. A atualização mensal roda
+os sinais logo depois do transform. `python -m src.sinais --mes AAAA-MM` mostra os sinais de um
+mês, com a frase de cada um, sem gravar nada.
+
+Produtos (chave no arquivo): ureia (`ureia`), sulfato de amônio (`sulfato_amonio`), KCl (`kcl`),
+MAP (`map`), DAP (`dap`) e TSP (`tsp`), com os NCMs do custo por nutriente; NPK (`npk`), o grupo
+inteiro; enxofre (`enxofre`) e rocha fosfática (`rocha`), os insumos do fósforo.
+
+| Tipo | Dispara quando | Forte quando |
+| --- | --- | --- |
+| `media_12m` | CIF do mês 20% ou mais acima ou abaixo da média simples dos 12 meses anteriores (pelo menos 9 deles válidos) | 40% ou mais |
+| `variacao_3m` | CIF 15% ou mais acima ou abaixo do de 3 meses antes (os dois meses válidos) | 30% ou mais |
+| `recorde` | CIF acima do maior (alta) ou abaixo do menor (queda) de todos os meses válidos anteriores, depois de 36 deles; empate não conta | passa o recorde anterior por 5% ou mais |
+| `internacional` | Pink Sheet do produto 10% ou mais acima ou abaixo de 2 meses antes, sem troca de base da série no intervalo, e o CIF do Brasil, nos mesmos 2 meses, andou no mesmo sentido menos da metade disso (ou ficou parado, ou foi ao contrário) | Pink Sheet 20% ou mais |
+| `troca_p90` | relação de troca no porto (KCl, ureia e MAP) acima do percentil 90 dos meses válidos anteriores, depois de 36 deles | acima do percentil 97,5 |
+| `ritmo_importacao` | toneladas do mês 25% ou mais acima ou abaixo das do mesmo mês do ano anterior, que precisa ter o volume mínimo | 50% ou mais |
+
+Os números são os padrões de `src/config.py` (`SINAIS_*`), repetidos no campo `limites` do
+arquivo.
+
+- **Proteção contra ruído:** preço só em mês válido: pelo menos 20 mil t do produto (enxofre e
+  rocha, que chegam em poucos navios grandes, 40 mil t), CIF presente e fora da amostra pequena.
+  Cada mês das janelas de comparação passa pela mesma regra; o que não passa fica fora da conta.
+  Na troca, a soja exportada do mês também precisa do volume mínimo.
+- **Arredondamento:** a variação passa ou não no limite já arredondada como a frase a mostra
+  (inteiro, meio para cima; na troca, 2 casas). Um sinal nunca diz "40%" com nível atenção.
+- **Mês sem dado:** mês sem importação conta como zero toneladas no ritmo; mês sem dado (fora do
+  período baixado) não entra.
+- **Pink Sheet:** o MAP usa o DAP como aproximação; sulfato de amônio, NPK e enxofre não têm
+  série. A Pink Sheet é uma referência de outro lugar e de outro momento de contrato, não o preço
+  do Brasil.
+- **Troca no porto:** CIF do fertilizante ÷ FOB da soja exportada no mesmo mês. Não é o preço ao
+  produtor; é US$/US$ e não muda com o câmbio.
+
+### Formato do `data/sinais.json` (versão 1)
+
+Topo: `versao` (inteiro, hoje 1), `periodo` (`{inicio, fim}`, AAAA-MM), `fonte` (texto),
+`limites` (os `SINAIS_*` usados), `produtos` (por chave: `nome`, `ancora`, `volume_min_t`,
+`pink_sheet`, que é o nome da série ou null), `notas` (avisos de leitura) e `sinais` (lista).
+
+Cada sinal, sempre com estes campos e nesta ordem:
+
+| Campo | Tipo | O que é |
+| --- | --- | --- |
+| `id` | texto | `AAAA-MM/produto/tipo`, único e estável entre atualizações |
+| `mes` | texto | mês do dado (AAAA-MM), não o da publicação |
+| `produto` | texto | chave do produto (lista acima) |
+| `tipo` | texto | `media_12m`, `variacao_3m`, `recorde`, `internacional`, `troca_p90` ou `ritmo_importacao` |
+| `direcao` | texto | `alta` ou `queda` (no recorde, alta = máxima e queda = mínima; na troca, sempre alta) |
+| `metrica` | texto | `cif_usd_t` (CIF do Brasil, US$/t), `pink_usd_t` (Pink Sheet, US$/t), `troca_t_soja` (t de soja por t) ou `t` (toneladas) |
+| `valor` | número | valor do mês na métrica (toneladas inteiras; o resto com até 6 casas) |
+| `unidade` | texto | `US$/t`, `t de soja por t` ou `t` |
+| `comparacao` | objeto | `base` (`media_12m`, `3_meses_antes`, `recorde_anterior`, `pink_2_meses_antes`, `percentil_90` ou `mesmo_mes_ano_anterior`), `valor` (o termo de comparação, na mesma métrica), `variacao_pct` (valor ÷ comparação − 1, em %) e os campos do tipo, abaixo |
+| `nivel` | texto | `atencao` ou `forte` |
+| `ancora` | texto | id do gráfico no site (`#secao-bm`, `#secao-nutrientes`, `#precos`, `#troca`, `#grafico-enxofre`, `#grafico-rocha`) |
+| `frase` | texto | frase pronta em pt-BR, com os números formatados como no site |
+
+Campos a mais em `comparacao`:
+
+- `media_12m`: `janela_meses`, `meses_validos`;
+- `variacao_3m`: `mes` (o de referência), `janela_meses`;
+- `recorde`: `mes` (o do recorde anterior), `desde` (primeiro mês válido da série),
+  `meses_validos`;
+- `internacional`: `mes`, `janela_meses`, `pink_serie`, `proxy` (true no MAP, comparado pelo DAP),
+  `brasil_valor`, `brasil_anterior`, `brasil_variacao_pct` (o CIF do Brasil nos mesmos meses);
+- `troca_p90`: `percentil`, `meses_validos`;
+- `ritmo_importacao`: `mes` (o mesmo mês do ano anterior).
+
+Ordem: por mês, depois nível (forte primeiro), produto (na ordem da lista acima) e tipo (na ordem
+da tabela). Um sinal por linha e sem data de geração: o arquivo só muda quando mudam os dados ou
+as regras.
+
+**Estabilidade.** `versao` só muda se um campo sair ou mudar de tipo ou de sentido. Campo novo
+(no topo, num sinal ou em `comparacao`) e tipo novo de sinal não mudam a versão; quem lê deve
+ignorar o que não conhece. O `id` identifica o sinal de uma atualização para outra. O histórico
+inteiro é recalculado a cada atualização, com os dados e os limites atuais: uma revisão das
+fontes (Comex Stat, Pink Sheet) ou um limite novo em `src/config.py` pode criar, mudar ou apagar
+o sinal de um mês passado, e o histórico do Git guarda cada versão publicada. Os dados seguem a
+licença de `data/` (CC BY 4.0, crédito "Graaos (github.com/mvsantos-dev/graaos)").
+
+Fonte: Comex Stat/MDIC; Banco Mundial (Pink Sheet).
+
+## Marcos de mercado
+
+[`data/eventos.yml`](data/eventos.yml) guarda eventos de mercado escolhidos à mão pelo
+mantenedor, cada um com a fonte. Cada evento vira uma linha vertical discreta no mês dele, nos
+gráficos dos produtos citados (custo por nutriente, relação de troca, Brasil x mercado
+internacional, preços com o grupo NPK e os gráficos de insumos), com uma dica (título, data e
+domínio da fonte) e o link da fonte embaixo do cartão. O arquivo começa vazio, só com um exemplo
+comentado; sem eventos, os gráficos ficam como estão. O marco é uma anotação, não um dado das
+fontes oficiais: a linha marca o mês do evento e não diz que ele causou a variação.
+
+```yaml
+- data: 2026-03-15            # AAAA-MM-DD ou AAAA-MM; a linha fica no mês
+  titulo: "Título curto do evento"
+  fonte_url: https://exemplo.gov.br/noticia
+  produtos: [ureia, map]
+```
+
+- `titulo`: até 160 caracteres, entre aspas se tiver ": " ou " #";
+- `fonte_url`: endereço que começa com `https://`, em minúsculas;
+- `produtos`: lista entre colchetes com as chaves `ureia`, `sulfato_amonio`, `kcl`, `map`, `dap`,
+  `tsp`, `npk`, `enxofre` e `rocha`.
+
+O `src/eventos.py` lê só esse pedaço do YAML, com a biblioteca padrão, e recusa campo a mais, a
+menos ou repetido, data que não existe, evento repetido e qualquer outra sintaxe: um arquivo
+inválido faz o `build_site.sh` falhar. Para conferir antes do commit: `python -m src.eventos`
+(ou `python -m src.eventos arquivo.yml`).
 
 ## Observações sobre os dados e a API
 
@@ -1021,6 +1225,9 @@ job. Os nomes estão em [`.env.example`](.env.example). Nenhum teste depende de 
   OpenAI ou Ollama).
 - [x] **Fase 6:** [benchmark internacional e câmbio](#brasil-x-mercado-internacional-fase-6):
   Pink Sheet do Banco Mundial e PTAX do BCB, com a regra do mês completo na atualização.
+- [x] Insumos do fósforo (enxofre e rocha fosfática, com a rocha contra a Pink Sheet e o custo
+  de insumo do MAP), [sinais de preço e de volume](#sinais-de-preço-e-de-volume) e
+  [marcos de mercado](#marcos-de-mercado) nos gráficos.
 - [ ] **Fase 7:** logística portuária com dados da ANTAQ (fila, espera, terminais).
 - [ ] **Fase 8:** demanda e cobertura (CONAB).
 - [ ] **Fase 9:** projeção de curto prazo.

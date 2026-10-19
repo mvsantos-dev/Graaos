@@ -1,0 +1,17 @@
+# Marcos de mercado: cada evento vira uma linha vertical discreta no mês dele, nos gráficos dos
+# produtos citados, com a dica (título, data e domínio da fonte) e o link da fonte embaixo do
+# cartão. Sem nenhum evento (só comentários), os gráficos ficam como estão.
+#
+# Formato (o build confere com src/eventos.py; erro aqui faz o build_site.sh falhar):
+#   data       AAAA-MM-DD ou AAAA-MM; a linha fica no mês
+#   titulo     texto curto (até 160 caracteres); entre aspas se tiver ": " ou " #"
+#   fonte_url  endereço https:// da fonte
+#   produtos   lista entre colchetes com as chaves: ureia, sulfato_amonio, kcl, map, dap, tsp,
+#              npk, enxofre, rocha
+# Para conferir antes do commit: python -m src.eventos
+#
+# Exemplo (tire o "# " do começo das quatro linhas para usar):
+# - data: 2026-03-15
+#   titulo: "Título curto do evento"
+#   fonte_url: https://exemplo.gov.br/noticia
+#   produtos: [ureia, map]

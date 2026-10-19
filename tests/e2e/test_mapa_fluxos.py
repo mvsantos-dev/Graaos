@@ -1038,7 +1038,7 @@ def test_lista_de_espera_no_fim_e_o_convite_do_menu_rola_ate_ela(navegador, serv
     ctx, pg, r = _lista(navegador, servidor)
     # os dados vêm primeiro: a lista fica entre a Troca e o Método, na ordem do HTML e na tela
     assert pg.evaluate("[...document.querySelectorAll('main > section')].map((s) => s.id)") == [
-        "boletim", "volumes", "origens", "fluxos", "portos", "precos", "troca", "lista-espera", "metodo"]
+        "boletim", "volumes", "origens", "fluxos", "portos", "precos", "insumos", "troca", "lista-espera", "metodo"]
     faixas = pg.evaluate("""() => ['secao-troca', 'lista-espera', 'metodo'].map((id) => {
       const b = document.getElementById(id).getBoundingClientRect(); return [b.top + scrollY, b.bottom + scrollY]; })""")
     assert faixas[0][1] < faixas[1][0] and faixas[1][1] < faixas[2][0]

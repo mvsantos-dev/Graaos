@@ -19,7 +19,7 @@ import pytest
 
 from src import boletim as B
 from src import config
-from src.estatico import boletins, boletins_frases as T, dados as D, formato as F
+from src.estatico import boletins, boletins_frases as T, dados as D, formato as F, sinais as SN
 from src.estatico.contexto import URL_BASE, Contexto, ErroEstatico
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -265,7 +265,9 @@ def test_troca_no_porto_sem_reais_e_nao_e_preco_ao_produtor(ctx):
         assert "R$" not in pagina and "reais" not in pagina.lower()  # nenhum valor em reais, e troca nunca em R$
         assert "ágio" not in pagina.lower() and "UF do importador" not in pagina
         rodape = re.search(r'<footer class="rodape">(.*?)</footer>', pagina, re.S).group(1)
-        assert "Fonte: Comex Stat/MDIC</span>" in rodape and "Código aberto (MIT) · dados CC BY 4.0" in rodape
+        # Comex Stat; o Banco Mundial só quando um sinal do mês (bloco "Sinais do mês") usa a Pink Sheet
+        fontes = "; ".join(SN.fontes(SN.do_mes(SN.documento(ctx), p)))
+        assert f"Fonte: {fontes}</span>" in rodape and "Código aberto (MIT) · dados CC BY 4.0" in rodape
 
 
 def test_frases_modelo_neutras_e_sem_numero_fora_do_pacote(painel, fatos):

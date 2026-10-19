@@ -953,7 +953,7 @@ a { color: inherit; text-underline-offset: 2px; }
 .termos dt { flex: none; font: 600 11px/1.3 var(--mono); color: var(--titulo); letter-spacing: 0.02em; }
 .termos dd { margin: 0; }
 .termos a { color: var(--titulo); font: 400 11.5px/1.3 var(--mono); }
-#glossario { scroll-margin-top: 84px; }
+#glossario, #metodo-insumos { scroll-margin-top: 84px; }
 .glossario { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 32px; margin: 14px 0 0; }
 .glossario dt { font: 600 12px/1.3 var(--mono); color: var(--titulo); }
 .glossario dd { margin: 4px 0 0; color: var(--texto-2); font-size: 13.5px; line-height: 1.5; }
@@ -962,9 +962,10 @@ a { color: inherit; text-underline-offset: 2px; }
 .grafico canvas { display: block; }
 .alto-300 { height: 300px; }
 .alto-260 { height: 260px; }
+.alto-200 { height: 200px; } /* toneladas embaixo do preço (Insumos do fósforo) */
 /* No celular o gráfico é estreito: mais altura para a curva não ficar achatada. */
 @media (max-width: 600px) {
-  .alto-300 { height: 320px; } .alto-260 { height: 280px; }
+  .alto-300 { height: 320px; } .alto-260 { height: 280px; } .alto-200 { height: 220px; }
   .grafico { margin-top: 10px; }
   .legenda { gap: 4px 12px; margin-top: 8px; }
 }
@@ -1005,6 +1006,65 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .boletim .rodape-boletim { margin: 12px 0 0; color: var(--texto-2); font-size: 12px; max-width: 78ch; }
 .boletim .links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; }
 .boletim .selo { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--borda); border-radius: 999px; font-weight: 600; }
+.boletim h4.sinais-boletim { margin: 18px 0 0; font-size: 13px; font-weight: 600; color: var(--texto-2); }
+
+/* --- Sinais do mês (src/estatico/sinais.py) -------------------------------------------------
+ * Cards estáticos, montados no build a partir do data/sinais.json, logo depois do hero e antes dos
+ * filtros (que não mexem neles). O nível vai em texto (Forte, Atenção), não só na cor: o forte com o
+ * selo cheio e um filete à esquerda. A minilinha é um SVG aria-hidden que herda a cor do título
+ * (currentColor), nos dois temas; a frase do card é o texto acessível. */
+.sinais .bloco-lead { max-width: 62ch; }
+.sinais-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+.cartao.sinal { position: relative; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.cartao.sinal[data-nivel="forte"] { border-color: color-mix(in srgb, var(--titulo) 40%, transparent); }
+.cartao.sinal[data-nivel="forte"]::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--titulo); }
+.sinal-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; color: var(--texto-2); font: 400 11.5px/1.3 var(--mono); letter-spacing: 0.01em; }
+.sinal-nivel {
+  display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px;
+  color: var(--titulo); font: 500 11px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+}
+[data-nivel="forte"] .sinal-nivel { border-color: var(--cobalto); background: var(--cobalto); color: #ffffff; }
+/* duas linhas reservadas para a frase: as minilinhas da mesma fileira ficam na mesma altura */
+.sinal-frase { min-height: 2.7em; margin: 0; color: var(--texto); font: 400 17px/1.35 var(--fonte); letter-spacing: -0.01em; overflow-wrap: anywhere; text-wrap: pretty; }
+.sinal-linha { display: block; width: 100%; height: auto; overflow: visible; color: var(--titulo); }
+.sinal-linha path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sinal-linha .area { fill: currentColor; fill-opacity: 0.08; stroke: none; }
+.sinal-linha .referencia { stroke: var(--texto-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.sinal-linha .extra { stroke: var(--texto-2); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.sinal-linha .fim { fill: currentColor; }
+.sinal-linha .marca { fill: var(--superficie); stroke: currentColor; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.sinal-legenda { margin: 0; color: var(--texto-2); font-size: 11.5px; line-height: 1.4; }
+.sinal-link { align-self: flex-start; margin-top: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--titulo); font: 400 12px/1.2 var(--mono); text-underline-offset: 3px; }
+.sinal-link::after { content: "→"; transition: transform 0.2s var(--facil); }
+.sinal-link:hover::after { transform: translateX(3px); }
+.sinais-vazio { margin: 0; padding: 16px 18px; border: 1px dashed var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto-2); }
+.sinais-rodape { display: grid; gap: 6px; margin-top: 14px; color: var(--texto-2); font-size: 13px; line-height: 1.5; }
+.sinais-rodape p { margin: 0; max-width: 90ch; }
+.sinais-rodape .nota { font-size: 12.5px; }
+.sinais-rodape a { color: var(--titulo); }
+.sinais-regras summary { cursor: pointer; min-height: 32px; display: inline-flex; align-items: center; gap: 8px; color: var(--titulo); list-style: none; }
+.sinais-regras summary::-webkit-details-marker { display: none; }
+.sinais-regras summary::before { content: "+"; width: 1ch; font: 400 14px/1 var(--mono); }
+.sinais-regras[open] summary::before { content: "−"; }
+.sinais-regras .lista-metodo { margin-top: 4px; font-size: 13px; }
+/* os links dos cards rolam até o cartão ou o gráfico (hero.js usa o scroll-margin-top), abaixo da barra do topo */
+#secao-bm, #secao-nutrientes { scroll-margin-top: 84px; }
+.grafico > canvas { scroll-margin-top: 120px; }
+/* Celular: os cards numa faixa que rola de lado (o próximo aparece na borda), para a seção não empurrar os
+   dados para muito longe; a página não rola de lado. */
+@media (max-width: 560px) {
+  .sinais-lista {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: min(86%, 340px); gap: 12px;
+    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+    /* até as bordas da tela: o recuo é o da .pagina (24 px); o teste de navegador acusa rolagem lateral */
+    margin-inline: -24px; padding: 2px 24px 6px; scroll-padding-inline: 24px;
+  }
+  .sinais-lista::-webkit-scrollbar { display: none; }
+  .sinais-lista > li { scroll-snap-align: start; }
+  .sinal-frase { font-size: 16px; }
+  .sinal-link, .sinais-regras summary { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .sinal-link::after { transition: none; } }
 
 /* --- Lista de espera (assets/lista-espera.js) ----------------------------------------------
  * Um cartão em duas colunas: texto e aviso de privacidade à esquerda, formulário à direita (uma
@@ -1157,4 +1217,19 @@ footer.rodape a { white-space: nowrap; } /* o endereço do repositório não que
 .dica .linha span.serie { color: var(--texto-2); }
 .dica .chave { width: 12px; height: 2px; border-radius: 1px; flex: none; }
 .dica .extra { color: var(--texto-2); margin-top: 2px; white-space: normal; }
+
+/* --- Marcos de mercado (data/eventos.yml): linha nos gráficos, dica e a linha "Marcos" ---- */
+/* --marco: a linha tracejada, discreta; --marco-forte: o losango do topo e a linha sob o ponteiro */
+:root { --marco: rgba(75, 79, 122, 0.5); --marco-forte: #4b4f7a; }
+:root[data-theme="dark"] { --marco: rgba(182, 186, 230, 0.45); --marco-forte: #b6bae6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --marco: rgba(182, 186, 230, 0.45); --marco-forte: #b6bae6; } }
+.chave-marco { flex: none; display: inline-block; width: 7px; height: 7px; background: var(--marco-forte); transform: rotate(45deg); }
+.dica .marco { display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--grade); white-space: normal; }
+.dica .marco + .marco { margin-top: 4px; padding-top: 0; border-top: 0; }
+.dica .marco .chave-marco { margin-top: 4px; }
+.dica .marco strong { display: block; font-weight: 600; }
+.dica .marco .fonte { display: block; color: var(--texto-2); }
+.cartao .marcos { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--texto-2); overflow-wrap: anywhere; }
+.cartao .marcos .marcos-rotulo { display: inline-flex; align-items: center; gap: 7px; margin-right: 2px; font-weight: 600; }
+.cartao .marcos a { color: var(--titulo); text-underline-offset: 2px; }
 .oculto { display: none !important; }
