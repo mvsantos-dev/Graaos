@@ -299,12 +299,12 @@ def notas(dados: dict, indices: list[int]) -> dict[str, str]:
     ref = rocha["benchmark"]
     return {
         "nota-enxofre": (f"{_descricao(enx)} · US$ por tonelada e toneladas · {periodo} · meses com menos de {F.fmt0(enx['corte_amostra_t'])} t "
-                         'ficam fora das linhas de preço (na tabela, "pequena")'),
+                         'ficam fora das linhas de preço (trecho tracejado; na tabela, "pequena")'),
         "nota-rocha": (f"{_descricao(rocha)} · benchmark: {ref['serie']}, {ref['base']}, Banco Mundial · {periodo} · meses com menos de "
-                       f'{F.fmt0(rocha["corte_amostra_t"])} t ficam fora da comparação (na tabela, "pequena")'),
+                       f'{F.fmt0(rocha["corte_amostra_t"])} t ficam fora da comparação (trecho tracejado; na tabela, "pequena")'),
         "nota-custo-map": (f"Custo de insumo = CIF do enxofre × {fmt_coef(c['coef_enxofre'])} + CIF da rocha fosfática × {fmt_coef(c['coef_rocha'])}, "
                            f"em US$ por tonelada de MAP · CIF do MAP: NCM {', '.join(c['ncms_map'])} · {periodo} · o mês com amostra pequena de um dos "
-                           "três fica fora dos gráficos"),
+                           "três fica fora da conta (trecho tracejado nos gráficos)"),
         "metodo-insumos": f"Insumos do fósforo (enxofre e rocha fosfática importados): {' '.join(b['notas'])}",
     }
 
