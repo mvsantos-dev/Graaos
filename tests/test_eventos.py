@@ -80,6 +80,13 @@ def test_arquivo_do_repositorio_e_valido_e_o_exemplo_comentado_tambem():
     assert re.findall(r"[a-z_]+", lista) == list(E.PRODUTOS)
 
 
+def test_fonte_aceita_aqui_passa_no_filtro_do_script():
+    """O script da página descarta o marco cuja fonte não casa com /^https:\\/\\/\\S+$/: o que o parser aceita casa."""
+    assert "/^https:\\/\\/\\S+$/.test(m.fonte_url)" in INDEX.read_text(encoding="utf-8")
+    for e in E.analisar(VALIDO):
+        assert re.fullmatch(r"https://\S+", e["fonte_url"]), e["fonte_url"]
+
+
 def test_dominio_sem_www():
     assert E.dominio("https://www.gov.br/agricultura/x") == "gov.br"
     assert E.dominio("https://WWW2.Exemplo.org:8443/") == "www2.exemplo.org"
@@ -92,6 +99,9 @@ INVALIDOS = [
     ("data: 2026-01\n", 1, "cada evento começa com '- '"),
     ("-data: 2026-01\n", 1, "falta um espaço depois do '-'"),
     ("-# comentário\n", 1, "falta um espaço depois do '-'"),
+    ("---\n- data: 2026-01\n", 1, "marcador de documento '---'"),
+    ("--- # início\n", 1, "marcador de documento '---'"),
+    (_evento() + "...\n", 5, "marcador de documento '...'"),
     ("  titulo: x\n", 1, "antes do primeiro evento"),
     ("- data: 2026-01\n\ttitulo: x\n", 2, "tabulação"),
     ("- data: 2026-01\n   titulo: x\n", 2, "recuo de 3 espaços"),
@@ -154,6 +164,8 @@ INVALIDOS = [
     (_evento(fonte_url="http://exemplo.gov.br/a"), 3, "precisa começar com https://"),
     (_evento(fonte_url="ftp://exemplo.gov.br/a"), 3, "precisa começar com https://"),
     (_evento(fonte_url="exemplo.gov.br/a"), 3, "precisa começar com https://"),
+    (_evento(fonte_url="HTTPS://exemplo.gov.br/a"), 3, "precisa começar com https:// (em minúsculas)"),  # o script da página o descartaria
+    (_evento(fonte_url="Https://exemplo.gov.br/a"), 3, "precisa começar com https://"),
     (_evento(fonte_url="https://"), 3, "sem um domínio válido"),
     (_evento(fonte_url="https://localhost/a"), 3, "sem um domínio válido"),
     (_evento(fonte_url="https://192.168.0.1/a"), 3, "sem um domínio válido"),
@@ -295,8 +307,12 @@ def test_build_site_falha_com_eventos_invalidos(tmp_path):
     shutil.copy(RAIZ / "build_site.sh", raiz / "build_site.sh")
     shutil.copytree(RAIZ / "dashboard", raiz / "dashboard", ignore=shutil.ignore_patterns("print*.png", "preview.png", "*.gif"))
     shutil.copytree(RAIZ / "src", raiz / "src", ignore=shutil.ignore_patterns("__pycache__"))
-    (raiz / "data" / "processed").mkdir(parents=True)
-    shutil.copy(RAIZ / "data" / "processed" / "dashboard.json", raiz / "data" / "processed" / "dashboard.json")
+    shutil.copytree(RAIZ / "data" / "processed", raiz / "data" / "processed")
+    for extra in ("data/sinais.json", "boletins"):  # o que outras etapas do build leem, se existir (como no e2e)
+        if (RAIZ / extra).is_dir():
+            shutil.copytree(RAIZ / extra, raiz / extra)
+        elif (RAIZ / extra).is_file():
+            shutil.copy(RAIZ / extra, raiz / extra)
     (raiz / E.ARQUIVO).write_text(_evento(data="2026-02-30"), encoding="utf-8")
     r = subprocess.run(["bash", str(raiz / "build_site.sh"), str(raiz / "site")], capture_output=True, text=True, timeout=300)
     assert r.returncode == 1

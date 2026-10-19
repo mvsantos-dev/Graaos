@@ -12,6 +12,7 @@ Sem o Playwright ou sem RADAR_E2E_LIBS, o teste é pulado (como no CI).
 
 import functools
 import http.server
+import json
 import os
 import shutil
 import subprocess
@@ -27,9 +28,15 @@ if not LIBS:
 
 RAIZ = Path(__file__).resolve().parents[2]
 CHROMIUM = os.environ.get("RADAR_E2E_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
-EVENTOS = """\
+MESES = "jan fev mar abr mai jun jul ago set out nov dez".split()
+# O A cai 6 meses antes do último mês dos dados: fica nos "12 meses" a cada atualização mensal. O B
+# (jun/2024) fica sempre no período inteiro e nunca nos 12 meses.
+_FIM = json.loads((RAIZ / "data" / "processed" / "dashboard.json").read_text(encoding="utf-8"))["meta"]["periodo"]["fim"]
+_N = int(_FIM[:4]) * 12 + int(_FIM[5:7]) - 1 - 6
+ANO_A, MES_A = _N // 12, _N % 12 + 1
+EVENTOS = f"""\
 # dois eventos de teste
-- data: 2026-03-15
+- data: {ANO_A}-{MES_A:02d}-15
   titulo: "Marco de teste A"
   fonte_url: https://www.exemplo.gov.br/noticia-a
   produtos: [kcl]
@@ -38,7 +45,7 @@ EVENTOS = """\
   fonte_url: https://exemplo.org/b?x=1
   produtos: [ureia, enxofre]
 """
-A = {"titulo": "Marco de teste A", "rotulo": "mar/2026", "data": "15/03/2026", "url": "https://www.exemplo.gov.br/noticia-a", "dominio": "exemplo.gov.br"}
+A = {"titulo": "Marco de teste A", "rotulo": f"{MESES[MES_A - 1]}/{ANO_A}", "data": f"15/{MES_A:02d}/{ANO_A}", "url": "https://www.exemplo.gov.br/noticia-a", "dominio": "exemplo.gov.br"}
 B = {"titulo": "Marco de teste B", "rotulo": "jun/2024", "data": "jun/2024", "url": "https://exemplo.org/b?x=1", "dominio": "exemplo.org"}
 GRAFICOS = ["grafico-toneladas", "grafico-origens", "grafico-hhi", "grafico-portos", "grafico-precos", "grafico-frete",
             "grafico-nutrientes", "grafico-bm", "grafico-spread", "grafico-brl", "grafico-troca"]
@@ -149,7 +156,7 @@ def _pixel(pg, id_, rotulo):
 
 def test_linhas_so_nos_graficos_dos_produtos_citados(navegador, site):
     ctx, pg, erros = _pagina(navegador, site)
-    assert pg.evaluate("MARCOS.map((m) => [m.data, m.dominio, m.produtos])") == [["2024-06", "exemplo.org", ["ureia", "enxofre"]], ["2026-03-15", "exemplo.gov.br", ["kcl"]]]
+    assert pg.evaluate("MARCOS.map((m) => [m.data, m.dominio, m.produtos])") == [["2024-06", "exemplo.org", ["ureia", "enxofre"]], [f"{ANO_A}-{MES_A:02d}-15", "exemplo.gov.br", ["kcl"]]]
     marcados = pg.evaluate(MARCADOS, GRAFICOS)
     # visão padrão: troca (KCl, ureia, MAP) e nutrientes (ureia, MAP, KCl) com os dois; benchmark do KCl só com o A
     assert marcados["grafico-troca"] == [[B["rotulo"], [B["titulo"]]], [A["rotulo"], [A["titulo"]]]]
@@ -296,7 +303,7 @@ def test_sem_eventos_nada_muda(navegador, site_vazio):
     assert pg.evaluate("Chart.registry.plugins.get('marcos') === undefined"), "sem eventos, o plugin nem é registrado"
     assert pg.evaluate(f"{GRAFICOS}.filter((id) => Chart.getChart(id)?.$marcos)") == []
     assert pg.evaluate(LISTAS) == []
-    dica = _apontar(pg, "grafico-troca", "mar/2026")
+    dica = _apontar(pg, "grafico-troca", A["rotulo"])
     assert dica["visivel"] and dica["marcos"] == []
     assert erros == []
     ctx.close()

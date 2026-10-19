@@ -1015,7 +1015,7 @@ const pluginMarcos = {
 // embaixo do gráfico (lista: false, sem linha: os gráficos 1 e 2 do benchmark usam a do 3).
 function ligarMarcos(id, config) {
   if (!MARCOS.length) return;
-  const plugins = (config.options.plugins ??= {});
+  const plugins = ((config.options ??= {}).plugins ??= {});
   if (!plugins.marcos && MARCOS_GRAFICOS[id]) plugins.marcos = { produtos: MARCOS_GRAFICOS[id] };
   if (!plugins.marcos || plugins.marcos.lista === false) return;
   const canvas = document.getElementById(id);

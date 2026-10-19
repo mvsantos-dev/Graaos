@@ -218,6 +218,8 @@ def ler_yaml(texto: str, nome: str = ARQUIVO) -> list[dict]:
             _campo(resto, onde, atual)
             continue
         if recuo == 0:
+            if re.match(r"(---|\.\.\.)(\s|$)", corpo):
+                raise onde.erro(f"marcador de documento {corpo[:3]!r} não é aceito: o arquivo é só a lista de eventos")
             if corpo.startswith("-"):
                 raise onde.erro("falta um espaço depois do '-'")
             raise onde.erro("cada evento começa com '- ' na primeira coluna (o arquivo é uma lista de eventos)")
@@ -274,8 +276,9 @@ def _url(valor, onde: _Linha) -> str:
         partes.port  # porta inválida levanta ValueError
     except ValueError:
         raise onde.erro(f"fonte_url {valor!r} inválida") from None
-    if partes.scheme != "https":
-        raise onde.erro(f"fonte_url {valor!r} precisa começar com https://")
+    # "https://" literal, em minúsculas: o script da página só aceita assim (HTTPS:// sumiria sem erro)
+    if partes.scheme != "https" or not valor.startswith("https://"):
+        raise onde.erro(f"fonte_url {valor!r} precisa começar com https:// (em minúsculas)")
     if partes.username is not None or partes.password is not None:
         raise onde.erro("fonte_url com usuário ou senha não é aceita")
     host = partes.hostname or ""
