@@ -127,7 +127,7 @@ def frase_preco_enxofre(dados: dict, indices: list[int]) -> str:
         frase = (f"Em {F.rotulo_mes(ate)}, o {nome} importado custou {F.por_tonelada(v('cif', ate))} CIF{f' ({dif})' if dif else ''}, "
                  f"com {F.por_tonelada(v('fob', ate))} FOB e {F.por_tonelada(v('frete', ate))} de frete.")
     else:
-        frase = sem_preco_insumo(dados, prod, ate, "fora do gráfico de preço", "preço")
+        frase = sem_preco_insumo(dados, prod, ate, "ponto vazado no gráfico de preço", "preço")
     meses = [p[i] for i in indices if com_preco(p[i])]
     if len(meses) > 1:
         menor = maior = meses[0]
@@ -198,8 +198,8 @@ def sem_custo_map(dados: dict, periodo: str) -> str:
     nomes = [nome_na_frase(b["produtos"][k]["nome"]) for k in ("enxofre", "rocha")]
     if custo_map_no_mes(dados, "amostra_pequena", periodo) is True:
         cortes = [F.fmt0(x) for x in (b["produtos"]["enxofre"]["corte_amostra_t"], b["produtos"]["rocha"]["corte_amostra_t"], b["custo_map"]["corte_amostra_map_t"])]
-        return (f"Em {F.rotulo_mes(periodo)}, o custo de insumo fica fora dos gráficos: amostra pequena (menos de {cortes[0]} t de {nomes[0]}, "
-                f"{cortes[1]} t de {nomes[1]} ou {cortes[2]} t de MAP no mês).")
+        return (f"Em {F.rotulo_mes(periodo)}, o custo de insumo fica fora da conta: amostra pequena (menos de {cortes[0]} t de {nomes[0]}, "
+                f"{cortes[1]} t de {nomes[1]} ou {cortes[2]} t de MAP no mês; ponto vazado nos gráficos).")
     return f"Em {F.rotulo_mes(periodo)}, não há custo de insumo: falta o preço de {nomes[0]}, de {nomes[1]} ou de MAP no mês."
 
 
@@ -299,12 +299,12 @@ def notas(dados: dict, indices: list[int]) -> dict[str, str]:
     ref = rocha["benchmark"]
     return {
         "nota-enxofre": (f"{_descricao(enx)} · US$ por tonelada e toneladas · {periodo} · meses com menos de {F.fmt0(enx['corte_amostra_t'])} t "
-                         'ficam fora das linhas de preço (trecho tracejado; na tabela, "pequena")'),
+                         'aparecem como ponto vazado, fora das frases (na tabela, "pequena")'),
         "nota-rocha": (f"{_descricao(rocha)} · benchmark: {ref['serie']}, {ref['base']}, Banco Mundial · {periodo} · meses com menos de "
-                       f'{F.fmt0(rocha["corte_amostra_t"])} t ficam fora da comparação (trecho tracejado; na tabela, "pequena")'),
+                       f'{F.fmt0(rocha["corte_amostra_t"])} t aparecem como ponto vazado, fora das frases e da comparação (na tabela, "pequena")'),
         "nota-custo-map": (f"Custo de insumo = CIF do enxofre × {fmt_coef(c['coef_enxofre'])} + CIF da rocha fosfática × {fmt_coef(c['coef_rocha'])}, "
                            f"em US$ por tonelada de MAP · CIF do MAP: NCM {', '.join(c['ncms_map'])} · {periodo} · o mês com amostra pequena de um dos "
-                           "três fica fora da conta (trecho tracejado nos gráficos)"),
+                           "três aparece como ponto vazado, fora das frases e da média"),
         "metodo-insumos": f"Insumos do fósforo (enxofre e rocha fosfática importados): {' '.join(b['notas'])}",
     }
 
