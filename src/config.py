@@ -119,3 +119,20 @@ GRUPO_POR_SH6 = {"310530": "P", "310540": "P"}
 # líquido (2807 ácido sulfúrico, 2809 ácido fosfórico, 2814 amônia) fica fora do Graaos.
 GRUPO_INSUMOS = "INSUMOS"
 INSUMOS_POR_SH4 = {"2503": "enxofre", "2510": "rocha"}
+# Custo de insumo por tonelada de MAP (src/insumos.py) = CIF do enxofre × INSUMOS_COEF_ENXOFRE
+# + CIF da rocha × INSUMOS_COEF_ROCHA. Aproximação técnica, não o custo de nenhuma empresa:
+# toneladas de cada insumo por tonelada de MAP 11-52. O P2O5 do MAP vem do ácido fosfórico, feito
+# atacando a rocha com ácido sulfúrico, que sai do enxofre. Rocha: 0,52 t de P2O5 por t de MAP ÷
+# (cerca de 32% de P2O5 no concentrado × cerca de 95% de recuperação) ≈ 1,7 t. Enxofre: cerca de
+# 2,7 t de ácido sulfúrico por t de P2O5 ≈ 1,4 t de ácido por t de MAP ≈ 0,45 t de enxofre (32/98
+# do peso do ácido). O consumo real muda com o teor da rocha e o processo de cada fábrica.
+INSUMOS_COEF_ENXOFRE = 0.45  # t de enxofre por t de MAP
+INSUMOS_COEF_ROCHA = 1.7  # t de rocha fosfática por t de MAP
+# Amostra pequena por insumo: mês com menos toneladas que isso fica marcado (preço de um navio
+# só). Os dois chegam em graneleiros de 30 a 60 mil t por carga, e o mês típico traz várias cargas
+# (mediana de 2015-01 a 2026-09: cerca de 180 mil t de enxofre e 145 mil t de rocha). Abaixo de 30
+# mil t, menos de um navio cheio. Nesses dados, o corte marca 2 meses de enxofre (2016-03, 3 mil t,
+# e 2023-07, 21 mil t, com CIF mais de 60% acima da mediana móvel de 5 meses; o mês seguinte em
+# volume, com 42 mil t, fica a 4% dela) e 1 de rocha (2024-12, 21 mil t). O corte dos fertilizantes
+# (comparacao.CORTE_AMOSTRA_T, 10 mil t) deixaria passar 2023-07.
+INSUMOS_CORTE_AMOSTRA_T = {"enxofre": 30_000, "rocha": 30_000}

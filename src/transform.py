@@ -24,6 +24,9 @@ Lê os dados brutos (data/raw/, via ingest.ler_raw) e o grupo de cada NCM
 - troca_mensal.csv: relação de troca "no porto" entre soja exportada e KCl,
   ureia e MAP importados (src/troca.py), se houver dados de soja em
   data/raw_soja/;
+- insumos_mensal.csv e custo_insumo_map_mensal.csv: insumos do fósforo (src/insumos.py),
+  enxofre e rocha fosfática importados (data/raw_insumos/, fora de todos os totais de
+  fertilizantes), a rocha contra a Pink Sheet e o custo de insumo por tonelada de MAP;
 - dashboard.json: export compacto para o dashboard estático (fase 3).
 
 Nas tabelas de share, HHI e sazonalidade, o grupo TOTAL soma N, P, K e NPK.
@@ -44,7 +47,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import benchmark, comparacao, config, ingest, mapa, nutrientes, troca
+from . import benchmark, comparacao, config, ingest, insumos, mapa, nutrientes, troca
 
 log = logging.getLogger(__name__)
 
@@ -370,13 +373,18 @@ def _bloco_estados(share_uf: pd.DataFrame) -> dict:
 
 
 def dashboard(
-    tabelas: dict[str, pd.DataFrame], fonte_pink: dict | None = None, ncms: dict | None = None, ref_mapa: tuple | None = None
+    tabelas: dict[str, pd.DataFrame],
+    fonte_pink: dict | None = None,
+    ncms: dict | None = None,
+    ref_mapa: tuple | None = None,
+    base_insumos: pd.DataFrame | None = None,
 ) -> dict:
     """Export compacto (séries mensais, resumo anual, rankings e sazonalidade) para a fase 3.
 
     `ncms` ({"monitorados": n, "com_importacao": n}) vai para o meta: o hero do dashboard
     mostra esses números, sempre vindos dos dados. `ref_mapa` (países e URFs com coordenadas,
-    de data/ref) liga o bloco do mapa de fluxos.
+    de data/ref) liga o bloco do mapa de fluxos. `base_insumos` (insumos.nos_meses) dá as
+    origens do bloco "insumos".
     """
     precos_grupo = tabelas["precos_mes_grupo"]
     origens, urfs = tabelas["share_origem_ano"], tabelas["share_urf_ano"]
@@ -491,6 +499,11 @@ def dashboard(
         painel["benchmark"] = comparacao.bloco_dashboard(tabelas["benchmark_mensal"], periodos, _num, fonte_pink)
     if ref_mapa is not None and "rotas_ano" in tabelas:
         painel["mapa"] = mapa.bloco_dashboard(tabelas, *ref_mapa, _num)
+    if "insumos_mensal" in tabelas:
+        origens_insumos = insumos.origens(base_insumos, _num) if base_insumos is not None else {}
+        painel["insumos"] = insumos.bloco_dashboard(
+            tabelas["insumos_mensal"], tabelas["custo_insumo_map_mensal"], periodos, _num, origens_insumos, fonte_pink
+        )
     return painel
 
 
@@ -512,6 +525,8 @@ def _arredondar(df: pd.DataFrame) -> pd.DataFrame:
             df[coluna] = df[coluna].round(4) + 0.0
         elif coluna.endswith("_brl_t"):
             df[coluna] = df[coluna].round(2) + 0.0
+        elif coluna.startswith("razao_"):
+            df[coluna] = df[coluna].round(4) + 0.0
     return df
 
 
@@ -522,12 +537,15 @@ def gerar(
     pink: pd.DataFrame | None = None,
     ptax: pd.DataFrame | None = None,
     fonte_pink: dict | None = None,
+    base_insumos: pd.DataFrame | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Calcula todas as tabelas e grava os CSVs e o dashboard.json em `saida`.
 
     Sem `soja` (exportação de soja em grão), a relação de troca fica de fora; sem `pink` (Pink
     Sheet do Banco Mundial), a comparação com o mercado internacional também. `ptax` (BCB) só
-    serve para os valores em reais (CIF e custo por nutriente).
+    serve para os valores em reais (CIF e custo por nutriente). Sem `base_insumos` (enxofre e
+    rocha, ingest.ler_insumos), os insumos do fósforo ficam de fora; eles nunca entram em `base`
+    nem nos totais de fertilizantes.
     """
     tabelas = {
         "precos_mes_grupo_origem": precos(base, por_origem=True),
@@ -545,6 +563,12 @@ def gerar(
     if pink is not None and not pink.empty:
         ptax = ptax if ptax is not None else pd.DataFrame(columns=benchmark.COLUNAS_PTAX)
         tabelas["benchmark_mensal"] = comparacao.comparar(base, pink, ptax)
+    if base_insumos is not None and not base_insumos.empty:
+        base_insumos = insumos.nos_meses(base_insumos, base)
+        tabelas["insumos_mensal"] = insumos.mensal(base_insumos, base, pink)
+        tabelas["custo_insumo_map_mensal"] = insumos.custo_map(tabelas["insumos_mensal"], base)
+    else:
+        base_insumos = None
     saida.mkdir(parents=True, exist_ok=True)
     for nome, df in tabelas.items():
         _arredondar(df).to_csv(saida / f"{nome}.csv", index=False, encoding="utf-8", lineterminator="\n")
@@ -556,7 +580,9 @@ def gerar(
         ref_mapa = (mapa.ler_paises(), mapa.ler_urfs())
     else:
         log.warning("Sem %s ou %s: o mapa de fluxos fica de fora. Rode: python -m src.mapa paises e urfs", mapa.PAISES_CSV, mapa.URFS_CSV)
-    painel = json.dumps(dashboard(tabelas, fonte_pink, ncms, ref_mapa), ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+    painel = json.dumps(
+        dashboard(tabelas, fonte_pink, ncms, ref_mapa, base_insumos), ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    )
     (saida / "dashboard.json").write_text(painel + "\n", encoding="utf-8")
     return tabelas
 
@@ -579,6 +605,9 @@ def main(argv: list[str] | None = None) -> int:
         "--raw-benchmark", type=Path, default=config.RAW_BENCHMARK_DIR, help="Pink Sheet (padrão: data/raw_benchmark)"
     )
     parser.add_argument("--raw-cambio", type=Path, default=config.RAW_CAMBIO_DIR, help="PTAX (padrão: data/raw_cambio)")
+    parser.add_argument(
+        "--raw-insumos", type=Path, default=config.RAW_INSUMOS_DIR, help="enxofre e rocha fosfática (padrão: data/raw_insumos)"
+    )
     parser.add_argument("--saida", type=Path, default=config.PROCESSED_DIR, help="destino (padrão: data/processed)")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
@@ -621,7 +650,21 @@ def main(argv: list[str] | None = None) -> int:
                     " comparação. Rode: python -m src.ingest --inicio 2015-01 --serie %s",
                     nome, fim or "nenhum mês", ultimo, serie,
                 )
-    tabelas = gerar(base, args.saida, soja, pink, ptax, fonte_pink)
+    base_insumos = ingest.ler_insumos(args.raw_insumos)
+    if base_insumos.empty:
+        log.warning(
+            "Sem importações de enxofre e rocha em %s; os insumos do fósforo ficam de fora."
+            " Rode: python -m src.ingest --inicio 2015-01 --serie insumos",
+            args.raw_insumos,
+        )
+    elif _ultimo_mes(base_insumos) < _ultimo_mes(base):
+        log.warning(
+            "Os insumos em %s vão só até %d-%02d, antes do último mês das importações; esses meses ficam"
+            " vazios. Rode: python -m src.ingest --inicio 2015-01 --serie insumos",
+            args.raw_insumos,
+            *divmod(_ultimo_mes(base_insumos), 100),
+        )
+    tabelas = gerar(base, args.saida, soja, pink, ptax, fonte_pink, base_insumos)
     for nome, df in tabelas.items():
         log.info("%s: %d linhas", args.saida / f"{nome}.csv", len(df))
     log.info("%s: %.0f KB", args.saida / "dashboard.json", (args.saida / "dashboard.json").stat().st_size / 1024)
