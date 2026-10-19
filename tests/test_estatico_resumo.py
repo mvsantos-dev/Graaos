@@ -70,17 +70,17 @@ def test_frase_toneladas_mes_e_acumulado():
     painel = _painel([1_000_000] * 12 + [800_000, 900_000, 1_100_000])
     assert R.frase_toneladas(painel, "TOTAL", "2025-03") == (
         "Em mar/2025, o Brasil importou 1,1\u00a0mi t de fertilizantes, 10,0% a mais que em mar/2024. "
-        "No acumulado de jan–mar/2025, foram 2,8\u00a0mi t, 6,7% a menos que em jan–mar/2024."
+        "No acumulado de jan–mar/2025, foram 2,8\u00a0mi t, 6,7% a menos que em jan–mar/2024. Fonte: Comex Stat/MDIC."
     )
     # janeiro: o acumulado é o próprio mês
-    assert R.frase_toneladas(painel, "K", "2025-01") == "Em jan/2025, o Brasil importou 800\u00a0mil t de fertilizantes potássicos, 20,0% a menos que em jan/2024."
+    assert R.frase_toneladas(painel, "K", "2025-01") == "Em jan/2025, o Brasil importou 800\u00a0mil t de fertilizantes potássicos, 20,0% a menos que em jan/2024. Fonte: Comex Stat/MDIC."
 
 
 def test_frase_toneladas_sem_ano_anterior_e_sem_importacao():
     painel = _painel([1_000_000, 0, 500])
-    assert R.frase_toneladas(painel, "NPK", "2024-01") == "Em jan/2024, o Brasil importou 1\u00a0mi t de fertilizantes compostos (NPK)."
+    assert R.frase_toneladas(painel, "NPK", "2024-01") == "Em jan/2024, o Brasil importou 1\u00a0mi t de fertilizantes compostos (NPK). Fonte: Comex Stat/MDIC."
     assert R.frase_toneladas(painel, "N", "2024-02") == (
-        "Em fev/2024, o Brasil não importou fertilizantes nitrogenados. No acumulado de jan–fev/2024, foram 1\u00a0mi t."
+        "Em fev/2024, o Brasil não importou fertilizantes nitrogenados. No acumulado de jan–fev/2024, foram 1\u00a0mi t. Fonte: Comex Stat/MDIC."
     )
 
 
@@ -97,12 +97,12 @@ def test_frase_ranking_das_origens():
     painel["anual"]["K"]["n_origens"] = [1]
     assert R.frase_ranking(painel, "origens", "TOTAL", 2024) == (
         "Maior origem dos fertilizantes em 2024: Rússia, com 21,9% das toneladas, à frente de China (18,2%) e Canadá (15,0%); "
-        "juntas, as três somam 55,1%. Ao todo, as importações vieram de 10 países."
+        "juntas, as três somam 55,1%. Ao todo, as importações vieram de 10 países. Fonte: Comex Stat/MDIC."
     )
     assert R.frase_ranking(painel, "origens", "N", 2024).startswith("Maior origem dos fertilizantes nitrogenados em 2024: China, com 70,0% das toneladas, à frente de Rússia (30,0%); juntas, as duas somam 100,0%.")
-    assert R.frase_ranking(painel, "origens", "K", 2024) == "Maior origem dos fertilizantes potássicos em 2024: Canadá, com 60,0% das toneladas. Ao todo, as importações vieram de 1 país."
-    assert R.frase_ranking(painel, "origens", "P", 2024) == "Sem importações de fertilizantes fosfatados em 2024."
-    assert R.frase_ranking(painel, "origens", "TOTAL", 2019) == "Sem importações de fertilizantes em 2019."
+    assert R.frase_ranking(painel, "origens", "K", 2024) == "Maior origem dos fertilizantes potássicos em 2024: Canadá, com 60,0% das toneladas. Ao todo, as importações vieram de 1 país. Fonte: Comex Stat/MDIC."
+    assert R.frase_ranking(painel, "origens", "P", 2024) == "Sem importações de fertilizantes fosfatados em 2024. Fonte: Comex Stat/MDIC."
+    assert R.frase_ranking(painel, "origens", "TOTAL", 2019) == "Sem importações de fertilizantes em 2019. Fonte: Comex Stat/MDIC."
 
 
 def test_frase_ranking_dos_portos_usa_o_nome_curto_da_urf():
@@ -113,7 +113,7 @@ def test_frase_ranking_dos_portos_usa_o_nome_curto_da_urf():
     ]}
     assert R.frase_ranking(painel, "portos", "TOTAL", 2024) == (
         "Maior porto de entrada (URF) dos fertilizantes em 2024: Paranaguá, com 50,0% das toneladas, "
-        "à frente de IRF São Luís (30,0%) e ALF - Salvador (15,0%); juntos, os três somam 95,0%."
+        "à frente de IRF São Luís (30,0%) e ALF - Salvador (15,0%); juntos, os três somam 95,0%. Fonte: Comex Stat/MDIC."
     )
 
 
@@ -134,9 +134,9 @@ def test_frase_hhi_com_todos_os_grupos_por_posicao_no_limiar():
         painel["anual"][g]["hhi"] = [1000, hhi]
     assert R.frase_hhi(painel, "TOTAL", 2025) == (
         "Em 2025 (jan–set), o HHI de N (2.499) e K (2.803) ficou acima de 1.800, o limiar de mercado altamente concentrado; "
-        "o de P (1.769) e NPK (1.597), abaixo."
+        "o de P (1.769) e NPK (1.597), abaixo. Fonte: Comex Stat/MDIC."
     )
-    assert R.frase_hhi(painel, "TOTAL", 2024) == "Em 2024, o HHI de N (1.000), P (1.000), K (1.000) e NPK (1.000) ficou abaixo de 1.800, o limiar de mercado altamente concentrado."
+    assert R.frase_hhi(painel, "TOTAL", 2024) == "Em 2024, o HHI de N (1.000), P (1.000), K (1.000) e NPK (1.000) ficou abaixo de 1.800, o limiar de mercado altamente concentrado. Fonte: Comex Stat/MDIC."
     painel["anual"]["P"]["hhi"] = [1000, 1800]
     assert "; o de P (1.800), no limiar; o de NPK (1.597), abaixo." in R.frase_hhi(painel, "TOTAL", 2025)
 
@@ -146,7 +146,7 @@ def test_frase_hhi_de_um_grupo_cita_a_maior_origem():
     painel["anual"]["K"].update(hhi=[2803], lider=["Canadá"], lider_share_pct=[38.823])
     assert R.frase_hhi(painel, "K", 2024) == (
         "Em 2024, o HHI dos fertilizantes potássicos ficou em 2.803, acima de 1.800, o limiar de mercado altamente concentrado; "
-        "a maior origem, Canadá, teve 38,8% das toneladas."
+        "a maior origem, Canadá, teve 38,8% das toneladas. Fonte: Comex Stat/MDIC."
     )
     painel["anual"]["K"].update(hhi=[None], lider=[None])
     assert R.frase_hhi(painel, "K", 2024) == ""
@@ -171,13 +171,13 @@ def test_frase_rotas():
     painel["rotas"] = {"corte_t": 50000, "dados": {}}
     assert R.frase_rotas(painel, _bloco_rotas(), "TOTAL", 2025) == (
         "Maior rota dos fertilizantes em 2025 (jan–set): Rússia → Santos, com 1,7\u00a0mi t (6,0% do total) e frete de US$ 44/t. "
-        "As 100 rotas com pelo menos 37.500 t somam 93,0% das toneladas, com frete médio de US$ 34/t."
+        "As 100 rotas com pelo menos 37.500 t somam 93,0% das toneladas, com frete médio de US$ 34/t. Fonte: Comex Stat/MDIC."
     )
     uma = R.frase_rotas(painel, _bloco_rotas(n_relevantes=1, frete_relevantes=None, rotas=[["Rússia", "1", "SANTAREM", 60000, 50.0, None, None, 9]]), "K", 2024)
-    assert uma == "Maior rota dos fertilizantes potássicos em 2024: Rússia → Santarém, com 60\u00a0mil t (50,0% do total). A rota com pelo menos 37.500 t soma 93,0% das toneladas."
-    assert R.frase_rotas(painel, _bloco_rotas(rotas=[], corte_t=None), "P", 2024) == "Em 2024, nenhuma rota de fertilizantes fosfatados teve pelo menos 50.000 t."
-    assert R.frase_rotas(painel, None, "NPK", 2024) == "Sem importações de fertilizantes compostos (NPK) em 2024."
-    assert R.frase_rotas(painel, _bloco_rotas(fluxos=[]), "NPK", 2024) == "Sem importações de fertilizantes compostos (NPK) em 2024."
+    assert uma == "Maior rota dos fertilizantes potássicos em 2024: Rússia → Santarém, com 60\u00a0mil t (50,0% do total). A rota com pelo menos 37.500 t soma 93,0% das toneladas. Fonte: Comex Stat/MDIC."
+    assert R.frase_rotas(painel, _bloco_rotas(rotas=[], corte_t=None), "P", 2024) == "Em 2024, nenhuma rota de fertilizantes fosfatados teve pelo menos 50.000 t. Fonte: Comex Stat/MDIC."
+    assert R.frase_rotas(painel, None, "NPK", 2024) == "Sem importações de fertilizantes compostos (NPK) em 2024. Fonte: Comex Stat/MDIC."
+    assert R.frase_rotas(painel, _bloco_rotas(fluxos=[]), "NPK", 2024) == "Sem importações de fertilizantes compostos (NPK) em 2024. Fonte: Comex Stat/MDIC."
 
 
 def test_rotulo_do_diagrama_traz_as_maiores_rotas_sem_outros_e_a_frase():
@@ -243,6 +243,8 @@ def test_todas_as_frases_saem_para_todos_os_meses_dos_dados(g):
         ]
         for frase in frases:
             assert frase and frase.endswith(".") and "None" not in frase and "nan" not in frase.lower(), (g, ate, frase)
+        for frase in frases[:5]:  # as frases dos gráficos citam a fonte (o aria-label as repete no fim)
+            assert frase.endswith(" Fonte: Comex Stat/MDIC."), (g, ate, frase)
             assert "ágio" not in frase and "UF do importador" not in frase
 
 

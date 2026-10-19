@@ -61,6 +61,11 @@ def comparado_a(v, rotulo: str) -> str | None:
     return f"{F.fmt1(abs(v))}% a {'menos' if sinal == F.MENOS else 'mais'} que em {rotulo}"
 
 
+def com_fonte_comex(frase: str) -> str:
+    """(comFonteComex) toda frase termina com a fonte, como as dos cartões de preço."""
+    return f"{frase} Fonte: Comex Stat/MDIC." if frase else ""
+
+
 def _linhas_ranking(dados: dict, tipo: str, g: str, ano: int) -> list:
     bloco = dados["origens"] if tipo == "origens" else dados["urfs"]
     return (bloco["dados"].get(str(ano)) or {}).get(g) or []
@@ -106,7 +111,7 @@ def frase_toneladas(dados: dict, g: str, ate: str) -> str:
         base = D.metricas(dados, g, idx_ant)["t"] if len(idx_ant) == mes else None
         no_acum = comparado_a(F.variacao_pct(t_acum, base), f"jan–{F.MESES[mes - 1]}/{ano - 1}")
         frase += f" No acumulado de jan–{F.MESES[mes - 1]}/{ano}, foram {F.toneladas(t_acum)}{', ' + no_acum if no_acum else ''}."
-    return frase
+    return com_fonte_comex(frase)
 
 
 def frase_ranking(dados: dict, tipo: str, g: str, ano: int) -> str:
@@ -114,7 +119,7 @@ def frase_ranking(dados: dict, tipo: str, g: str, ano: int) -> str:
     linhas = [r for r in _linhas_ranking(dados, tipo, g, ano) if r[1] != "Outros"][:3]
     nome = FERTILIZANTES_DE[g]
     if not linhas:
-        return f"Sem importações de {nome} em {rotulo_ano(dados, ano)}."
+        return com_fonte_comex(f"Sem importações de {nome} em {rotulo_ano(dados, ano)}.")
 
     def nome_de(r):
         return r[1] if tipo == "origens" else F.nome_curto_urf(r[1])
@@ -136,7 +141,7 @@ def frase_ranking(dados: dict, tipo: str, g: str, ano: int) -> str:
     n_origens = dados["anual"][g]["n_origens"][anos.index(ano)] if ano in anos else None
     if tipo == "origens" and not F.nulo(n_origens):
         frase += f" Ao todo, as importações vieram de {F.fmt0(n_origens)} {'país' if n_origens == 1 else 'países'}."
-    return frase
+    return com_fonte_comex(frase)
 
 
 def frase_hhi(dados: dict, g: str, ano: int) -> str:
@@ -157,7 +162,7 @@ def frase_hhi(dados: dict, g: str, ano: int) -> str:
         if F.nulo(h):
             return ""
         lider = "" if F.nulo(a["lider"][i]) else f"; a maior origem, {a['lider'][i]}, teve {F.pct(a['lider_share_pct'][i])} das toneladas"
-        return f"Em {rotulo_ano(dados, ano)}, o HHI dos {FERTILIZANTES_DE[g]} ficou em {F.fmt0(h)}, {relacao[posicao(h)]}, o limiar de mercado altamente concentrado{lider}."
+        return com_fonte_comex(f"Em {rotulo_ano(dados, ano)}, o HHI dos {FERTILIZANTES_DE[g]} ficou em {F.fmt0(h)}, {relacao[posicao(h)]}, o limiar de mercado altamente concentrado{lider}.")
     valores = [(x, dados["anual"][x]["hhi"][i]) for x in F.GRUPOS if not F.nulo(dados["anual"][x]["hhi"][i])]
     blocos = [(pos, [v for v in valores if posicao(v[1]) == pos]) for pos in ("acima", "no limiar", "abaixo")]
     blocos = [(pos, lista) for pos, lista in blocos if lista]
@@ -169,17 +174,17 @@ def frase_hhi(dados: dict, g: str, ano: int) -> str:
 
     (pos, primeiros), resto = blocos[0], blocos[1:]
     demais = "".join(f"; o de {lista(itens)}, {p}" for p, itens in resto)
-    return f"Em {rotulo_ano(dados, ano)}, o HHI de {lista(primeiros)} ficou {relacao[pos]}, o limiar de mercado altamente concentrado{demais}."
+    return com_fonte_comex(f"Em {rotulo_ano(dados, ano)}, o HHI de {lista(primeiros)} ficou {relacao[pos]}, o limiar de mercado altamente concentrado{demais}.")
 
 
 def frase_rotas(dados: dict, bloco: dict | None, g: str, ano: int) -> str:
     """(fraseRotas) a maior rota do ano e o frete médio das rotas com volume relevante."""
     nome = FERTILIZANTES_DE[g]
     if not bloco or not bloco["fluxos"]:
-        return f"Sem importações de {nome} em {rotulo_ano(dados, ano)}."
+        return com_fonte_comex(f"Sem importações de {nome} em {rotulo_ano(dados, ano)}.")
     corte = bloco.get("corte_t") if bloco.get("corte_t") is not None else dados["rotas"]["corte_t"]
     if not bloco["rotas"]:
-        return f"Em {rotulo_ano(dados, ano)}, nenhuma rota de {nome} teve pelo menos {F.fmt0(corte)} t."
+        return com_fonte_comex(f"Em {rotulo_ano(dados, ano)}, nenhuma rota de {nome} teve pelo menos {F.fmt0(corte)} t.")
     pais, _, urf, t, share, frete = bloco["rotas"][0][:6]
     origem = pais if pais is not None else F.TRACO
     porto = F.nome_curto_urf(urf) if urf else F.TRACO
@@ -189,7 +194,7 @@ def frase_rotas(dados: dict, bloco: dict | None, g: str, ano: int) -> str:
     quem = "A rota" if n == 1 else f"As {F.fmt0(n)} rotas"
     medio = "" if F.nulo(bloco["frete_relevantes"]) else f", com frete médio de {F.por_tonelada(bloco['frete_relevantes'])}"
     frase += f" {quem} com pelo menos {F.fmt0(corte)} t {'soma' if n == 1 else 'somam'} {F.pct(bloco['share_relevantes_pct'])} das toneladas{medio}."
-    return frase
+    return com_fonte_comex(frase)
 
 
 # --- Subtítulos e aria-labels dos gráficos (os mesmos textos do script) -----------------------

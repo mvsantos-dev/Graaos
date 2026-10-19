@@ -1096,6 +1096,8 @@ function comparadoA(v, rotulo) {
   const sinal = sinalDe(v, fmt1, "+");
   return sinal ? `${fmt1.format(Math.abs(v))}% a ${sinal === MENOS ? "menos" : "mais"} que em ${rotulo}` : `praticamente o mesmo que em ${rotulo}`;
 }
+// Toda frase termina com a fonte, como as dos cartões de preço; frase vazia continua vazia.
+const comFonteComex = (frase) => (frase ? `${frase} Fonte: Comex Stat/MDIC.` : "");
 
 // Destaques: as três maiores origens do ano do mês escolhido e a relação de troca do mês (no porto).
 function textoDestaques(g, ate) {
@@ -1129,7 +1131,7 @@ function fraseToneladas(g, ate) {
     const noAcum = comparadoA(variacaoPct(tAcum, idxAnt.length === mes ? metricas(g, idxAnt).t : null), `jan–${MESES[mes - 1]}/${ano - 1}`);
     frase += ` No acumulado de jan–${MESES[mes - 1]}/${ano}, foram ${toneladas(tAcum)}${noAcum ? `, ${noAcum}` : ""}.`;
   }
-  return frase;
+  return comFonteComex(frase);
 }
 
 // Origens e portos: o maior do ano e os dois seguintes, com o share das toneladas.
@@ -1137,7 +1139,7 @@ function fraseRanking(tipo, g, ano) {
   const bloco = tipo === "origens" ? dados.origens : dados.urfs;
   const linhas = ((bloco.dados[String(ano)] || {})[g] || []).filter((r) => r[1] !== "Outros").slice(0, 3);
   const nome = FERTILIZANTES_DE[g];
-  if (!linhas.length) return `Sem importações de ${nome} em ${rotuloAno(ano)}.`;
+  if (!linhas.length) return comFonteComex(`Sem importações de ${nome} em ${rotuloAno(ano)}.`);
   const nomeDe = (r) => (tipo === "origens" ? r[1] : nomeCurtoUrf(r[1]));
   const [maior, ...demais] = linhas;
   let frase = `${tipo === "origens" ? "Maior origem" : "Maior porto de entrada (URF)"} dos ${nome} em ${rotuloAno(ano)}: ${nomeDe(maior)}, com ${pct(maior[3])} das toneladas`;
@@ -1151,7 +1153,7 @@ function fraseRanking(tipo, g, ano) {
   const i = dados.anual.anos.indexOf(ano);
   const nOrigens = i >= 0 ? dados.anual[g].n_origens[i] : null;
   if (tipo === "origens" && !nulo(nOrigens)) frase += ` Ao todo, as importações vieram de ${fmt0.format(nOrigens)} ${nOrigens === 1 ? "país" : "países"}.`;
-  return frase;
+  return comFonteComex(frase);
 }
 
 // HHI: o ano do fim do período contra o limiar de 1.800 (com "Todos", cada grupo, como no gráfico).
@@ -1165,26 +1167,26 @@ function fraseHhi(g, ano) {
     const a = dados.anual[g];
     if (nulo(a.hhi[i])) return "";
     const lider = nulo(a.lider[i]) ? "" : `; a maior origem, ${a.lider[i]}, teve ${pct(a.lider_share_pct[i])} das toneladas`;
-    return `Em ${rotuloAno(ano)}, o HHI dos ${FERTILIZANTES_DE[g]} ficou em ${fmt0.format(a.hhi[i])}, ${relacao[posicao(a.hhi[i])]}, o limiar de mercado altamente concentrado${lider}.`;
+    return comFonteComex(`Em ${rotuloAno(ano)}, o HHI dos ${FERTILIZANTES_DE[g]} ficou em ${fmt0.format(a.hhi[i])}, ${relacao[posicao(a.hhi[i])]}, o limiar de mercado altamente concentrado${lider}.`);
   }
   const valores = GRUPOS.map((x) => [x, dados.anual[x].hhi[i]]).filter(([, h]) => !nulo(h));
   const blocos = ["acima", "no limiar", "abaixo"].map((pos) => [pos, valores.filter(([, h]) => posicao(h) === pos)]).filter(([, l]) => l.length);
   if (!blocos.length) return "";
   const lista = (l) => listaComE(l.map(([x, h]) => `${x} (${fmt0.format(h)})`));
   const [[pos, primeiros], ...resto] = blocos;
-  return `Em ${rotuloAno(ano)}, o HHI de ${lista(primeiros)} ficou ${relacao[pos]}, o limiar de mercado altamente concentrado${resto.map(([p, l]) => `; o de ${lista(l)}, ${p}`).join("")}.`;
+  return comFonteComex(`Em ${rotuloAno(ano)}, o HHI de ${lista(primeiros)} ficou ${relacao[pos]}, o limiar de mercado altamente concentrado${resto.map(([p, l]) => `; o de ${lista(l)}, ${p}`).join("")}.`);
 }
 
 // Rotas: a maior rota do ano e o frete médio das rotas com volume relevante.
 function fraseRotas(bloco, g, ano) {
   const nome = FERTILIZANTES_DE[g];
-  if (!bloco || !bloco.fluxos.length) return `Sem importações de ${nome} em ${rotuloAno(ano)}.`;
+  if (!bloco || !bloco.fluxos.length) return comFonteComex(`Sem importações de ${nome} em ${rotuloAno(ano)}.`);
   const corte = bloco.corte_t ?? dados.rotas.corte_t;
-  if (!bloco.rotas.length) return `Em ${rotuloAno(ano)}, nenhuma rota de ${nome} teve pelo menos ${fmt0.format(corte)} t.`;
+  if (!bloco.rotas.length) return comFonteComex(`Em ${rotuloAno(ano)}, nenhuma rota de ${nome} teve pelo menos ${fmt0.format(corte)} t.`);
   const [pais, , urf, t, share, frete] = bloco.rotas[0];
   let frase = `Maior rota dos ${nome} em ${rotuloAno(ano)}: ${pais ?? "–"} → ${urf ? nomeCurtoUrf(urf) : "–"}, com ${toneladas(t)} (${pct(share)} do total)${nulo(frete) ? "" : ` e frete de ${porTonelada(frete)}`}.`;
   frase += ` ${bloco.n_relevantes === 1 ? "A rota" : `As ${fmt0.format(bloco.n_relevantes)} rotas`} com pelo menos ${fmt0.format(corte)} t ${bloco.n_relevantes === 1 ? "soma" : "somam"} ${pct(bloco.share_relevantes_pct)} das toneladas${nulo(bloco.frete_relevantes) ? "" : `, com frete médio de ${porTonelada(bloco.frete_relevantes)}`}.`;
-  return frase;
+  return comFonteComex(frase);
 }
 
 function desenharToneladas(indices) {
