@@ -604,6 +604,15 @@ def test_mock_traz_o_paragrafo_de_sinais_sem_mudar_o_texto_da_ia(tmp_path, ultim
     assert [s["id"] for s in esperado["itens"]] == [s["id"] for s in ES.ordenar(sinais.sinais_do_mes(sinais.ler(), ultimo_mes))]
     assert "## Sinais do mês" in md and esperado["paragrafo"] in md
     assert all(f"`{s['id']}`" in md for s in esperado["itens"])
+    # a lista completa do .md leva as ressalvas e a fonte de todos os sinais, não só dos 6 do parágrafo
+    secao = md.split("## Sinais do mês", 1)[1].split("Números citados", 1)[0]
+    tipos = {s["id"].rsplit("/", 1)[1] for s in esperado["itens"]}
+    if esperado["itens"]:
+        assert esperado["notas"] in secao and esperado["notas"].endswith(f"Fonte: {'; '.join(ES.fontes([{'tipo': t} for t in tipos]))}.")
+    if "troca_p90" in tipos:
+        assert "no porto" in secao and "Não é o preço ao produtor." in secao
+    if "internacional" in tipos:
+        assert "Banco Mundial (Pink Sheet)" in secao and "outro momento de contrato" in secao
     # o texto da IA é o mesmo de sem o parágrafo: ele não passa pela IA nem pela validação
     sem = tmp_path / "sem"
     boletim.escrever(boletim.gerar(fatos, boletim.ProvedorMock()), fatos, sem, "mock", True)
@@ -643,6 +652,12 @@ def test_paragrafo_de_sinais_so_tem_numeros_do_programa(ultimo_mes):
             assert "no porto" in texto and "Não é o preço ao produtor." in texto
         if any(i["id"].endswith("/internacional") for i in mostrados):
             assert "Banco Mundial (Pink Sheet)" in s["fonte"] and "outro momento de contrato" in texto
+        # as notas da lista completa: as ressalvas de todos os sinais do mês e a fonte deles
+        if any(i["id"].endswith("/troca_p90") for i in s["itens"]):
+            assert "no porto" in s["notas"] and "Não é o preço ao produtor." in s["notas"]
+        if any(i["id"].endswith("/internacional") for i in s["itens"]):
+            assert "outro momento de contrato" in s["notas"] and s["notas"].endswith("Banco Mundial (Pink Sheet).")
+        assert s["notas"].startswith(("A troca", "A Pink Sheet", "Fonte: Comex Stat/MDIC")) and not re.search(r"\d", s["notas"])
         assert "R$" not in texto and "ágio" not in texto.lower()
 
 

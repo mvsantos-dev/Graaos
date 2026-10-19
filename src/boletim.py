@@ -1773,7 +1773,8 @@ def sinais_do_boletim(painel: dict, mes: str, dashboard: str = DASHBOARD) -> dic
     data/sinais.json, calculadas do mesmo dashboard.json) com os números já inseridos, na ordem dos
     cards do site (fortes primeiro e, no mesmo nível, o maior desvio), até o número de cards da home.
     Nada passa pela IA. Campos: paragrafo (texto pronto), fonte, pagina (todos os sinais do mês no
-    site) e itens (todos os sinais do mês: id, nível, frase e âncora do gráfico)."""
+    site), itens (todos os sinais do mês: id, nível, frase e âncora do gráfico) e notas (ressalvas e
+    fonte de todos os itens, que a lista completa do .md mostra)."""
     from . import sinais as S  # só biblioteca padrão, como este módulo
     from .estatico import sinais as ES
 
@@ -1800,6 +1801,8 @@ def sinais_do_boletim(painel: dict, mes: str, dashboard: str = DASHBOARD) -> dic
         "fonte": "; ".join(fontes),
         "pagina": f"{dashboard}boletim/{mes}/#sinais",
         "itens": [{"id": s["id"], "nivel": s["nivel"], "frase": s["frase"], "ancora": s["ancora"]} for s in lista],
+        # a lista completa pode ter a troca ou a Pink Sheet fora dos 6 do parágrafo
+        "notas": " ".join([*ES.ressalvas(lista), f"Fonte: {'; '.join(ES.fontes(lista))}."]),
     }
 
 
@@ -1834,7 +1837,7 @@ def markdown(conteudo: dict, meta: dict) -> str:
             nivel = {"forte": "Forte", "atencao": "Atenção"}
             linhas += ["<details>", f"<summary>Todos os sinais do mês ({len(sinais['itens'])}), por regras fixas do programa, sem IA</summary>", ""]
             linhas += [f"- **{nivel[s['nivel']]}** · {s['frase']} (`{s['id']}`)" for s in sinais["itens"]]
-            linhas += ["", "</details>", ""]
+            linhas += ["", *([sinais["notas"], ""] if sinais.get("notas") else []), "</details>", ""]
         linhas += [f"[Sinais do mês no site]({sinais['pagina']})", ""]
     linhas += ["<details>", "<summary>Números citados (inseridos pelo programa a partir do pacote de fatos)</summary>", ""]
     linhas += ["| Marcador | Valor |", "| --- | --- |"]

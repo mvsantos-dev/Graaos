@@ -164,18 +164,20 @@ def regras(doc: dict) -> list[str]:
         proprios.setdefault(vol, []).append(_minuscula(nome))
     excecoes = "; ".join(f"{' e '.join(nomes)}: {F.toneladas(vol)}" for vol, nomes in proprios.items())
     return [
-        f"Média: CIF do mês {_pct(m['limite_pct'])} ou mais acima ou abaixo da média dos {m['meses']} meses anteriores"
-        f" (forte a partir de {_pct(m['forte_pct'])}).",
+        f"Média: CIF do mês {_pct(m['limite_pct'])} ou mais acima ou abaixo da média dos {m['meses']} meses anteriores,"
+        f" com pelo menos {m['min_meses_validos']} deles válidos (forte a partir de {_pct(m['forte_pct'])}).",
         f"Variação: CIF {_pct(v['limite_pct'])} ou mais acima ou abaixo do de {v['meses']} meses antes"
         f" (forte a partir de {_pct(v['forte_pct'])}).",
-        f"Recorde: CIF acima do maior ou abaixo do menor da série, depois de {r['min_meses_validos']} meses de histórico"
-        f" (forte se passa o recorde anterior por {_pct(r['forte_pct'])} ou mais).",
-        f"Internacional na frente: a Pink Sheet do produto andou {_pct(i['limite_pct'])} ou mais em {i['meses']} meses e o CIF"
-        f" do Brasil não acompanhou (forte a partir de {_pct(i['forte_pct'])}); o MAP usa o DAP. {RESSALVA_PINK}",
-        f"Troca: relação de troca no porto acima do percentil {F.numero(t['percentil'], 0, 1)} da série"
-        f" (forte acima do percentil {F.numero(t['forte_percentil'], 0, 1)}). {RESSALVA_TROCA}",
+        f"Recorde: CIF acima do maior ou abaixo do menor de todos os meses válidos anteriores, com pelo menos"
+        f" {r['min_meses_validos']} deles (forte se passa o recorde anterior por {_pct(r['forte_pct'])} ou mais).",
+        f"Internacional na frente: a Pink Sheet do produto andou {_pct(i['limite_pct'])} ou mais em {i['meses']} meses"
+        f" (forte a partir de {_pct(i['forte_pct'])}) e o CIF do Brasil não acompanhou: no mesmo sentido, andou menos de"
+        f" {_pct(100 * i['fracao_acompanhou'])} disso; o MAP usa o DAP. {RESSALVA_PINK}",
+        f"Troca: relação de troca no porto acima do percentil {F.numero(t['percentil'], 0, 1)} dos meses válidos anteriores,"
+        f" com pelo menos {t['min_meses_validos']} deles (forte acima do percentil {F.numero(t['forte_percentil'], 0, 1)})."
+        f" {RESSALVA_TROCA}",
         f"Ritmo de importação: toneladas do mês {_pct(ri['limite_pct'])} ou mais acima ou abaixo das do mesmo mês do ano"
-        f" anterior (forte a partir de {_pct(ri['forte_pct'])}).",
+        f" anterior, quando ele tem o volume mínimo (forte a partir de {_pct(ri['forte_pct'])}).",
         f"Contra o ruído: preço só nos meses com pelo menos {F.toneladas(L['volume_min_t'])} do produto"
         + (f" ({excecoes})" if excecoes else "") + "; os outros ficam fora das médias, dos recordes e das comparações.",
     ]
@@ -343,8 +345,9 @@ def secao(ctx: Contexto, doc: dict) -> tuple[str, str]:
     todos = do_mes(doc, mes)
     mostrados = todos[:MAX_CARTOES]
     nome_mes = F.rotulo_mes_longo(mes)
+    ordem = " Os fortes vêm primeiro." if len({s["nivel"] for s in mostrados}) > 1 else ""
     lead = (f"Alertas automáticos de {nome_mes} para os {len(doc['produtos'])} produtos acompanhados: preço CIF, relação de"
-            " troca no porto e ritmo de importação, por regras fixas do programa, sem IA. Os fortes vêm primeiro.")
+            f" troca no porto e ritmo de importação, por regras fixas do programa, sem IA.{ordem}")
     series = S.series(ctx.dados, doc["limites"])
     periodos = ctx.periodos
     ids = ids_da_pagina(ctx.html)
@@ -473,7 +476,7 @@ def bloco_boletim(doc: dict, mes: str, ids: set[str] | None = None, prefixo: str
     return (
         '<section class="cartao grade sinais-boletim" id="sinais" aria-labelledby="t-sinais">\n<div>\n'
         f'<h2 class="titulo-cartao" id="t-sinais">Sinais do mês · {esc(F.rotulo_mes(mes))}</h2>\n'
-        f'<p class="nota">Regras fixas do programa sobre os dados do mês, sem IA. <a href="{prefixo}#sinais">Como são calculados</a></p>\n'
+        f'<p class="nota">Regras fixas do programa, só com os dados até o mês, sem IA. <a href="{prefixo}#sinais">Como são calculados</a></p>\n'
         f"{corpo}"
         f'<p class="nota">{esc(" ".join(notas))}</p>\n'
         "</div>\n</section>"

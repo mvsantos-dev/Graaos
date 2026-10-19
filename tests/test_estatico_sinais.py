@@ -153,6 +153,7 @@ def test_no_maximo_seis_cards_e_o_resto_na_pagina_do_boletim(tmp_path):
     assert f"Os {ES.MAX_CARTOES} principais dos {len(lista)} sinais de {F.rotulo_mes_longo(c.periodos[-1])} ({n_fortes} fortes)." in texto
     assert f'href="boletim/{c.periodos[-1]}/#sinais"' in corpo and "Ver todos na página do boletim" in texto
     assert F.rotulo_mes_longo(c.periodos[-1]) in lead and f"{len(doc['produtos'])} produtos" in lead
+    assert lead.endswith("Os fortes vêm primeiro.")  # fortes e de atenção entre os cards
 
 
 def test_mes_sem_sinais_mostra_uma_linha(tmp_path):
@@ -163,6 +164,7 @@ def test_mes_sem_sinais_mostra_uma_linha(tmp_path):
     assert "<li" not in secao.split('id="sinais-corpo"', 1)[1].split("sinais-rodape", 1)[0]
     mes = F.rotulo_mes_longo(dados["mensal"]["periodos"][-1])
     assert f'<p class="sinais-vazio">Nenhum sinal de preço ou de volume em {mes}: nenhum produto passou dos limites das regras.</p>' in secao
+    assert "Os fortes vêm primeiro" not in secao  # sem card, sem ordem para explicar
     assert ' hidden' not in re.search(r'<section class="bloco sinais"[^>]*>', secao).group(0)
     feed = ET.fromstring((c.site / ES.FEED).read_text(encoding="utf-8"))
     assert feed.findall(f"{ATOM}entry") == []  # sem mês com sinal, sem entrada (o feed continua válido)
@@ -232,6 +234,10 @@ def test_regras_e_ressalvas_com_os_limites_do_config(doc):
     for v in (config.SINAIS_MEDIA_PCT, config.SINAIS_VARIACAO_PCT, config.SINAIS_INTERNACIONAL_PCT, config.SINAIS_RITMO_PCT):
         assert f"{F.numero(v, 0, 1)}%" in texto
     assert f"{config.SINAIS_MEDIA_MESES} meses anteriores" in texto and f"percentil {F.numero(config.SINAIS_TROCA_PERCENTIL, 0, 1)}" in texto
+    # as condições que completam cada regra: meses válidos mínimos e o quanto o Brasil precisa andar para "acompanhar"
+    assert f"pelo menos {config.SINAIS_MEDIA_MIN_VALIDOS} deles válidos" in texto
+    assert f"pelo menos {config.SINAIS_RECORDE_MIN_MESES} deles" in texto and f"pelo menos {config.SINAIS_TROCA_MIN_MESES} deles" in texto
+    assert f"menos de {F.numero(100 * config.SINAIS_INTERNACIONAL_FRACAO, 0, 1)}% disso" in texto
     assert F.toneladas(config.SINAIS_VOLUME_MIN_T) in texto
     for vol in config.SINAIS_VOLUME_MIN_T_PRODUTO.values():
         assert F.toneladas(vol) in texto
@@ -423,7 +429,7 @@ def test_paginas_dos_boletins_tem_o_bloco_de_sinais(com_boletins, doc):
             else:
                 assert link == ""
         texto = _texto(bloco)
-        assert f"Fonte: {'; '.join(ES.fontes(lista))}." in texto and "sem IA" in texto
+        assert f"Fonte: {'; '.join(ES.fontes(lista))}." in texto and "sem IA" in texto and "dados até o mês" in texto
         if any(s["tipo"] == "troca_p90" for s in lista):
             assert "no porto" in texto and "Não é o preço ao produtor." in texto
         if any(s["tipo"] == "internacional" for s in lista):
