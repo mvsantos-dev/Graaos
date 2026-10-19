@@ -4,11 +4,14 @@
 // radar-fertilizantes-br, o nome de antes do rebranding para Graaos. O Workers Builds usa o nome
 // do Worker conectado ao repositório (graaos, no painel), mas com "graaos" aqui o build de
 // produção falhou (fe7cd4b, revertido): não trocar este nome sem conferir no painel da Cloudflare.
+// Endereço que não existe recebe o 404.html da raiz do site (gerado no build), com status 404; o
+// _headers do site (também gerado no build) define o cache de cada caminho.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "radar-fertilizantes-br",
   "compatibility_date": "2026-10-01",
   "assets": {
-    "directory": "./site"
+    "directory": "./site",
+    "not_found_handling": "404-page"
   }
 }
