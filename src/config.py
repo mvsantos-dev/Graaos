@@ -136,3 +136,52 @@ INSUMOS_COEF_ROCHA = 1.7  # t de rocha fosfática por t de MAP
 # volume, com 42 mil t, fica a 4% dela) e 1 de rocha (2024-12, 21 mil t). O corte dos fertilizantes
 # (comparacao.CORTE_AMOSTRA_T, 10 mil t) deixaria passar 2023-07.
 INSUMOS_CORTE_AMOSTRA_T = {"enxofre": 30_000, "rocha": 30_000}
+
+# --- Sinais de preço e de volume (src/sinais.py) ----------------------------------------------
+# Regras fixas em Python, sem IA, calculadas para cada mês da série só com os dados até ele (sem
+# olhar o futuro). O data/sinais.json repete todos estes valores no campo "limites". Um sinal é
+# "atencao" a partir do limite da regra e "forte" a partir do limite forte. Variações em %, que
+# entram na comparação arredondadas como a frase do sinal as mostra (inteiro, meio para cima).
+SINAIS_JSON = DADOS_DIR / "sinais.json"
+# Proteção contra ruído: preço (CIF em US$/t) só em mês com pelo menos este volume do produto (e
+# fora da amostra pequena do bloco de origem). Cada mês da janela de comparação passa pela mesma
+# regra: o mês que não passa fica fora da conta.
+SINAIS_VOLUME_MIN_T = 20_000
+# Enxofre e rocha chegam em navios graneleiros maiores, poucas cargas por mês: limite próprio,
+# escolhido pela distribuição mensal de data/raw_insumos (2015-01 a 2026-09), em que o 5º
+# percentil dos dois fica perto de 60 mil t. Abaixo de 40 mil t (cerca de uma carga) o mês é raro e
+# o preço é o de um navio só, que pode destoar dos vizinhos (como a rocha em 2025-06). Vale junto
+# com a amostra pequena do bloco "insumos" (INSUMOS_CORTE_AMOSTRA_T).
+SINAIS_VOLUME_MIN_T_PRODUTO = {"enxofre": 40_000, "rocha": 40_000}
+# Alta ou queda contra a média: CIF do mês ÷ média simples do CIF dos 12 meses anteriores que
+# passam no volume mínimo, com pelo menos 9 deles na janela.
+SINAIS_MEDIA_MESES = 12
+SINAIS_MEDIA_MIN_VALIDOS = 9
+SINAIS_MEDIA_PCT = 20.0
+SINAIS_MEDIA_FORTE_PCT = 40.0
+# Variação em 3 meses: CIF do mês ÷ CIF de 3 meses antes (os dois meses com o volume mínimo).
+SINAIS_VARIACAO_MESES = 3
+SINAIS_VARIACAO_PCT = 15.0
+SINAIS_VARIACAO_FORTE_PCT = 30.0
+# Recorde: CIF acima do maior (ou abaixo do menor) de todos os meses válidos anteriores, só depois
+# de 36 meses válidos, para os primeiros meses da série não virarem recorde trivial. Forte quando
+# passa o recorde anterior por 5% ou mais.
+SINAIS_RECORDE_MIN_MESES = 36
+SINAIS_RECORDE_FORTE_PCT = 5.0
+# Internacional na frente: a Pink Sheet do produto andou 10% ou mais em 2 meses (sem troca de base
+# da série no intervalo) e o CIF do Brasil, nos mesmos 2 meses, andou no mesmo sentido menos da
+# metade disso (ou ficou parado, ou foi ao contrário): o importado costuma reagir com atraso.
+SINAIS_INTERNACIONAL_MESES = 2
+SINAIS_INTERNACIONAL_PCT = 10.0
+SINAIS_INTERNACIONAL_FORTE_PCT = 20.0
+SINAIS_INTERNACIONAL_FRACAO = 0.5
+# Troca no porto (t de soja por t de KCl, ureia e MAP) acima do percentil 90 dos meses válidos
+# anteriores (interpolação linear), depois de 36 deles; forte acima do percentil 97,5. Válido = o
+# fertilizante e a soja exportada com o volume mínimo no mês.
+SINAIS_TROCA_PERCENTIL = 90.0
+SINAIS_TROCA_FORTE_PERCENTIL = 97.5
+SINAIS_TROCA_MIN_MESES = 36
+# Ritmo de importação: toneladas do mês contra as do mesmo mês do ano anterior, que precisa ter o
+# volume mínimo do produto (uma base quase sem compra daria variações sem sentido).
+SINAIS_RITMO_PCT = 25.0
+SINAIS_RITMO_FORTE_PCT = 50.0
