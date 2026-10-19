@@ -365,6 +365,7 @@
       <section class="cartao" aria-labelledby="titulo-precos">
         <h3 class="titulo-cartao" id="titulo-precos">Preço implícito: FOB x CIF</h3>
         <p class="nota" id="nota-precos"></p>
+        <p class="resumo-grafico" id="resumo-precos"></p>
         <dl class="termos" aria-label="O que querem dizer FOB e CIF">
           <div><dt>FOB</dt><dd>no porto de embarque, sem frete nem seguro</dd></div>
           <div><dt>CIF</dt><dd>no porto brasileiro, com frete e seguro</dd></div>
@@ -377,6 +378,7 @@
       <section class="cartao" aria-labelledby="titulo-frete">
         <h3 class="titulo-cartao" id="titulo-frete">Frete por tonelada</h3>
         <p class="nota" id="nota-frete"></p>
+        <p class="resumo-grafico" id="resumo-frete"></p>
         <div class="grafico alto-260"><canvas id="grafico-frete" role="img"></canvas></div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-frete"></div></details>
       </section>
@@ -386,6 +388,7 @@
       <div>
         <h3 class="titulo-cartao" id="titulo-nutrientes">Custo por nutriente: quanto custa a molécula</h3>
         <p class="nota" id="nota-nutrientes"></p>
+        <p class="resumo-grafico" id="resumo-nutrientes"></p>
         <p class="ressalva"><strong>Por tonelada de nutriente, no porto.</strong> Preço CIF do produto ÷ teor do nutriente: ureia a US$ 460/t, com 46% de N, sai a US$ 1.000 por tonelada de N. No MAP e no DAP, o N que vem junto é descontado pelo custo do N da ureia no mesmo mês, e o resto do preço vai para o P₂O₅. Não é o preço ao produtor: ficam de fora impostos, frete interno e margens.</p>
         <div class="chips" id="unidade-nutrientes" role="group" aria-label="Moeda" style="margin-top: 12px"></div>
         <div class="kpi-linha produtos" id="kpis-nutrientes"></div>
@@ -410,13 +413,16 @@
         <p class="nota oculto" id="vazio-bm"></p>
         <div id="graficos-bm">
         <h3 class="subtitulo">Preço do Brasil x benchmark (US$/t)</h3>
+        <p class="resumo-grafico" id="resumo-bm"></p>
         <ul class="legenda" id="legenda-bm"></ul>
         <div class="grafico alto-300"><canvas id="grafico-bm" role="img"></canvas></div>
         <h3 class="subtitulo">Spread na base comparável (%)</h3>
         <p class="nota" id="nota-spread"></p>
+        <p class="resumo-grafico" id="resumo-spread"></p>
         <div class="grafico alto-260"><canvas id="grafico-spread" role="img"></canvas></div>
         <h3 class="subtitulo">CIF em reais (R$/t, PTAX média do mês)</h3>
         <p class="nota" id="nota-brl"></p>
+        <p class="resumo-grafico" id="resumo-brl"></p>
         <div class="grafico alto-260"><canvas id="grafico-brl" role="img"></canvas></div>
         </div>
         <details class="tabela"><summary>Ver tabela</summary><div class="rolagem" id="tabela-bm"></div></details>
@@ -434,6 +440,7 @@
       <div>
         <h3 class="titulo-cartao" id="titulo-troca">Relação de troca no porto: soja x fertilizante</h3>
         <p class="nota" id="nota-troca"></p>
+        <p class="resumo-grafico" id="resumo-troca"></p>
         <p class="ressalva"><strong>No porto, não na fazenda.</strong> Toneladas de soja exportada (preço FOB) que pagam 1 t de fertilizante importado (preço CIF) no mesmo mês. Não é o preço ao produtor: ficam de fora o frete interno, impostos, margens e prêmios.</p>
         <div class="kpi-linha produtos" id="kpis-troca"></div>
         <ul class="legenda" id="legenda-troca"></ul>
@@ -1571,6 +1578,138 @@ function serieMensal(indices, campo) {
   });
 }
 
+// --- Frases de resumo dos preços ------------------------------------------------------------
+// Uma frase por gráfico de preços, frete, custo por nutriente, relação de troca e Brasil x mercado
+// internacional, para o filtro escolhido; ela também entra no aria-label do gráfico. O build
+// escreve as mesmas frases no HTML para a visão padrão (src/estatico/resumo_precos.py, com as
+// mesmas regras): mudou aqui, muda lá (tests/e2e/test_estatico_resumo_precos.py compara as duas).
+const PLURAL_GRUPO = { TOTAL: "fertilizantes", N: "nitrogenados", P: "fosfatados", K: "potássicos", NPK: "compostos (NPK)" };
+const NAO_E_AGIO = "Não é ágio: o benchmark é de outro lugar e de outro momento de contrato.";
+// Nome do produto no meio da frase: "Ureia" vira "ureia"; siglas como KCl e MAP ficam.
+const nomeNaFrase = (nome) => (/^\p{Lu}\p{Ll}/u.test(nome) ? nome.charAt(0).toLowerCase() + nome.slice(1) : nome);
+const mesAnoAntes = (periodo) => `${Number(periodo.slice(0, 4)) - 1}-${periodo.slice(5, 7)}`;
+// Valor por tonelada de um mês da série (a conta de serieMensal); fora da série, null.
+function porToneladaMes(g, campo, i) {
+  const m = dados.mensal[g];
+  return i >= 0 && m.t[i] > 0 && !nulo(m[campo][i]) ? (m[campo][i] * 1e6) / m.t[i] : null;
+}
+// "5,3% a mais que em set/2025" (sinal pelo número arredondado); sem base de comparação, "".
+function diferencaEmTexto(v, rotulo) {
+  if (nulo(v) || !Number.isFinite(v)) return "";
+  const sinal = sinalDe(v, fmt1, "+");
+  return sinal ? `${fmt1.format(Math.abs(v))}% a ${sinal === MENOS ? "menos" : "mais"} que em ${rotulo}` : `praticamente o mesmo que em ${rotulo}`;
+}
+
+// Preço implícito: FOB e CIF do último mês, o FOB contra o mesmo mês do ano anterior.
+function frasePrecos(g, ate) {
+  const p = periodos();
+  const i = p.indexOf(ate), antes = mesAnoAntes(ate);
+  const fob = porToneladaMes(g, "fob_musd", i), cif = porToneladaMes(g, "cif_musd", i);
+  if (nulo(fob)) return `Em ${rotuloMes(ate)}, não há preço implícito dos ${PLURAL_GRUPO[g]} importados. Fonte: Comex Stat/MDIC.`;
+  const dif = diferencaEmTexto(variacaoPct(fob, porToneladaMes(g, "fob_musd", p.indexOf(antes))), rotuloMes(antes));
+  const comCif = nulo(cif) ? "" : ` e ${porTonelada(cif)} CIF, com ${porTonelada(cif - fob)} de frete e seguro`;
+  return `Em ${rotuloMes(ate)}, o preço implícito dos ${PLURAL_GRUPO[g]} importados foi ${porTonelada(fob)} FOB${dif ? ` (${dif})` : ""}${comCif}. Fonte: Comex Stat/MDIC.`;
+}
+
+// Frete: US$/t e peso no CIF do último mês e do mesmo mês do ano anterior.
+function fraseFrete(g, ate) {
+  const p = periodos(), m = dados.mensal[g];
+  const peso = (i) => (i >= 0 && m.cif_musd[i] > 0 ? (100 * (m.frete_musd[i] ?? 0)) / m.cif_musd[i] : null);
+  const i = p.indexOf(ate), j = p.indexOf(mesAnoAntes(ate));
+  const frete = porToneladaMes(g, "frete_musd", i), freteAntes = porToneladaMes(g, "frete_musd", j);
+  if (nulo(frete)) return `Em ${rotuloMes(ate)}, não há frete por tonelada dos ${PLURAL_GRUPO[g]} importados. Fonte: Comex Stat/MDIC.`;
+  const antes = nulo(freteAntes) ? "" : `; em ${rotuloMes(p[j])}, ${porTonelada(freteAntes)} e ${pct(peso(j))}`;
+  return `Em ${rotuloMes(ate)}, o frete internacional médio dos ${PLURAL_GRUPO[g]} importados foi ${porTonelada(frete)}, ${pct(peso(i))} do valor CIF${antes}. Fonte: Comex Stat/MDIC.`;
+}
+
+// Custo por nutriente: o último mês de cada produto do gráfico, com o motivo de quem ficou fora.
+function fraseNutrientes(g, ate, chaveMoeda) {
+  const nu = dados.nutrientes, k = nu.periodos.indexOf(ate), moeda = MOEDAS_NUTR[chaveMoeda];
+  const itens = (PRODUTOS_NUTR[g] ?? ["ureia", "map", "kcl"]).filter((x) => nu.produtos[x]).map((x) => {
+    const prod = nu.produtos[x], nome = nomeNaFrase(prod.nome);
+    const t = k < 0 ? null : prod.t[k];
+    const v = k < 0 || !prod[moeda.campo] ? null : prod[moeda.campo][k];
+    if (nulo(t) || t === 0) return `${nome} sem importação no mês`;
+    if (prod.amostra_pequena[k]) return `${nome} fora do gráfico (amostra pequena, ${toneladas(t)})`;
+    return nulo(v) ? `${nome} sem custo no mês` : `${nome} ${moeda.rotulo} ${fmt0.format(v)}/t de ${nu.nutrientes[prod.nutriente]}`;
+  });
+  const emReais = chaveMoeda === "brl" ? ", em reais pela PTAX venda média do mês" : "";
+  return `Custo por tonelada de nutriente no porto em ${rotuloMes(ate)}${emReais}: ${itens.join("; ")}. Não é o preço ao produtor. Fonte: Comex Stat/MDIC${chaveMoeda === "brl" ? "; BCB/PTAX" : ""}.`;
+}
+
+// Relação de troca: toneladas de soja por tonelada de cada produto no último mês, contra a média.
+function fraseTroca(g, ate) {
+  const tr = dados.troca, j = tr.periodos.indexOf(ate);
+  let primeiro = true;
+  const itens = (PRODUTOS_TROCA[g] ?? ["kcl", "ureia", "map"]).map((x) => {
+    const prod = tr.produtos[x], nome = nomeNaFrase(prod.nome);
+    const v = j < 0 ? null : prod.razao[j];
+    if (nulo(v)) {
+      const t = j < 0 ? null : prod.t[j];
+      return `${nome} ficou sem relação de troca no mês (${nulo(t) || t === 0 ? "sem importação" : "sem preço da soja"})`;
+    }
+    const desvio = prod.media > 0 ? 100 * (v / prod.media - 1) : null;
+    const sinal = nulo(desvio) ? null : sinalDe(desvio, fmt1, "+");
+    const media = `média${primeiro ? " histórica" : ""} (${fmt2.format(prod.media)} t)`;
+    const dif = sinal === null ? "" : sinal ? `, ${fmt1.format(Math.abs(desvio))}% ${sinal === MENOS ? "abaixo" : "acima"} da ${media}` : `, igual à ${media}`;
+    const frase = primeiro ? `1 t de ${nome} custou ${fmt2.format(v)} t de soja${dif}` : `1 t de ${nome}, ${fmt2.format(v)} t${dif}`;
+    primeiro = false;
+    return frase;
+  });
+  return `Em ${rotuloMes(ate)}, no porto, ${itens.join("; ")}. Não é o preço ao produtor. Fonte: Comex Stat/MDIC.`;
+}
+
+// Brasil x mercado internacional: as frases dos três gráficos do produto escolhido, pelo último
+// mês do período que o gráfico mostra (sem amostra pequena); se o último mês ficou fora, diz por quê.
+function frasesBenchmark(chave, indices) {
+  const bm = dados.benchmark, prod = bm.produtos[chave], p = periodos();
+  const k = (i) => bm.periodos.indexOf(p[i]);
+  const valor = (campo, i) => (k(i) < 0 ? null : prod[campo][k(i)]);
+  const pequena = (i) => k(i) >= 0 && prod.amostra_pequena[k(i)];
+  const baseDe = (i) => [...prod.bases].reverse().find((b) => b.desde <= p[i]) ?? prod.bases[0];
+  const nome = nomeNaFrase(prod.nome);
+  const ate = indices[indices.length - 1];
+  const ultimo = (ok) => [...indices].reverse().find(ok) ?? -1;
+  const fora = (i, onde, falta) => {
+    const t = valor("t", i);
+    if (nulo(t) || t === 0) return `Em ${rotuloMes(p[i])}, não houve importação de ${nome}.`;
+    if (pequena(i)) return `Em ${rotuloMes(p[i])}, a importação de ${nome} foi de ${toneladas(t)}, menos de ${fmt0.format(bm.corte_amostra_t)} t: amostra pequena, fora ${onde}.`;
+    return `Em ${rotuloMes(p[i])}, não há ${falta} para ${nome}.`;
+  };
+  const quando = (i, onde, falta) => (i === ate ? `Em ${rotuloMes(p[i])}` : `${fora(ate, onde, falta)} Em ${rotuloMes(p[i])}, o último mês ${onde === "da comparação" ? "comparável do período" : "do período no gráfico"}`);
+  const fontes = "Fonte: Comex Stat/MDIC; Banco Mundial (Pink Sheet).";
+  const frases = { bm: "", spread: "", brl: "" };
+
+  const comparavel = (i) => !pequena(i) && !nulo(valor("spread_pct", i));
+  const i = ultimo(comparavel);
+  if (i >= 0) {
+    const base = baseDe(i);
+    const naOrigem = base.comparacao.startsWith("FOB");
+    const brasil = `${porTonelada(valor(naOrigem ? "fob" : "cif", i))} ${naOrigem ? "FOB" : "CIF"}`;
+    const s = valor("spread_pct", i), usd = valor("spread_usd_t", i);
+    const sinal = sinalDe(s, fmt1, "+");
+    const relacao = sinal ? `${fmt1.format(Math.abs(s))}% ${sinal === MENOS ? "abaixo" : "acima"} do benchmark` : "praticamente igual ao benchmark";
+    const referencia = `${prod.serie}${prod.proxy ? `, a referência do ${prod.nome}` : ""}`;
+    frases.bm = `${quando(i, "da comparação", "benchmark do Banco Mundial")}, o Brasil importou ${nome} a ${porTonelada(valor("fob", i))} FOB e ${porTonelada(valor("cif", i))} CIF; o benchmark do Banco Mundial (${referencia}), na base ${base.base}, foi de ${porTonelada(valor("bm", i))}. Na base comparável (${base.comparacao}), o preço do Brasil, de ${brasil}, ficou ${relacao}. ${NAO_E_AGIO} ${fontes}`;
+    const meses = indices.filter(comparavel);
+    // acima de zero pelo número arredondado, como o sinal: +0,0% não conta
+    const acima = meses.filter((x) => sinalDe(valor("spread_pct", x), fmt1, "+") === "+").length;
+    const emUsd = nulo(usd) ? "" : ` (${sinalDe(usd, fmt0, "+")}US$ ${fmt0.format(Math.abs(usd))}/t)`;
+    const quandoSpread = i === ate ? `em ${rotuloMes(p[i])}` : `em ${rotuloMes(p[i])}, o último mês comparável do período`;
+    frases.spread = `${i === ate ? "" : `${fora(ate, "da comparação", "benchmark do Banco Mundial")} `}Spread de ${nome} na base comparável (${base.comparacao}) ${quandoSpread}: ${comSinal(s, fmt1, "+")}%${emUsd}, com o preço do Brasil a ${brasil} e o benchmark a ${porTonelada(valor("bm", i))}. No período, o spread ficou acima de zero em ${fmt0.format(acima)} de ${fmt0.format(meses.length)} ${meses.length === 1 ? "mês comparável" : "meses comparáveis"}. ${NAO_E_AGIO} ${fontes}`;
+  }
+
+  const b = ultimo((x) => !pequena(x) && !nulo(valor("cif_brl_t", x)));
+  if (b >= 0) {
+    const kAntes = bm.periodos.indexOf(mesAnoAntes(p[b]));
+    const antes = kAntes >= 0 && !prod.amostra_pequena[kAntes] ? prod.cif_brl_t[kAntes] : null;
+    const dif = diferencaEmTexto(variacaoPct(valor("cif_brl_t", b), antes), rotuloMes(mesAnoAntes(p[b])));
+    const ptax = bm.ptax[k(b)];
+    frases.brl = `${quando(b, "do gráfico", "PTAX do mês")}, o CIF de ${nome} em reais, pela PTAX venda média do mês${nulo(ptax) ? "" : ` (R$ ${fmt4.format(ptax)})`}, foi ${reais(valor("cif_brl_t", b))}${dif ? `, ${dif}` : ""}. Fonte: Comex Stat/MDIC; BCB/PTAX.`;
+  }
+  return frases;
+}
+
 function desenharPrecos(indices) {
   const p = periodos();
   const rotulos = indices.map((i) => rotuloMes(p[i]));
@@ -1586,7 +1725,9 @@ function desenharPrecos(indices) {
     { rotulo: "FOB (no porto de embarque)", corItem: corPrincipal, tipo: "linha" },
     { rotulo: "CIF (com frete e seguro)", corItem: cor("--cif"), tipo: "linha" },
   ]);
-  document.getElementById("grafico-precos").setAttribute("aria-label", `Preço implícito FOB e CIF em US$ por tonelada, ${NOMES[estado.grupo]}. A tabela abaixo traz os valores.`);
+  const resumo = frasePrecos(estado.grupo, p[indices[indices.length - 1]]);
+  texto("resumo-precos", resumo);
+  document.getElementById("grafico-precos").setAttribute("aria-label", `Preço implícito FOB e CIF em US$ por tonelada, ${NOMES[estado.grupo]}. A tabela abaixo traz os valores. ${resumo}`);
   novoGrafico("grafico-precos", {
     type: "line",
     data: { labels: rotulos, datasets: [linha("CIF", cif, cor("--cif"), "CIF"), linha("FOB", fob, corPrincipal, "FOB")] },
@@ -1623,7 +1764,9 @@ function desenharFrete(indices) {
   const m = dados.mensal[chaveGrupo()];
   const peso = indices.map((i) => (m.cif_musd[i] > 0 ? (100 * (m.frete_musd[i] ?? 0)) / m.cif_musd[i] : null));
   texto("nota-frete", `${NOMES[estado.grupo]} · US$ por tonelada · ${rotulos[0]} a ${rotulos[rotulos.length - 1]}`);
-  document.getElementById("grafico-frete").setAttribute("aria-label", `Frete em US$ por tonelada, ${NOMES[estado.grupo]}. A tabela abaixo traz os valores.`);
+  const resumo = fraseFrete(estado.grupo, p[indices[indices.length - 1]]);
+  texto("resumo-frete", resumo);
+  document.getElementById("grafico-frete").setAttribute("aria-label", `Frete em US$ por tonelada, ${NOMES[estado.grupo]}. A tabela abaixo traz os valores. ${resumo}`);
   novoGrafico("grafico-frete", {
     type: "line",
     data: {
@@ -1705,7 +1848,9 @@ function desenharTroca(indices) {
       borderColor: comAlfa(prod.corSerie, 0.75), borderWidth: 1.5, borderDash: [5, 4], pointHoverRadius: 0,
     },
   ]);
-  document.getElementById("grafico-troca").setAttribute("aria-label", `Relação de troca no porto, toneladas de soja por tonelada de ${produtos.map((x) => x.nome).join(", ")}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}, com a média histórica tracejada. A tabela abaixo traz os valores.`);
+  const resumo = fraseTroca(estado.grupo, p[ate]);
+  texto("resumo-troca", resumo);
+  document.getElementById("grafico-troca").setAttribute("aria-label", `Relação de troca no porto, toneladas de soja por tonelada de ${produtos.map((x) => x.nome).join(", ")}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}, com a média histórica tracejada. A tabela abaixo traz os valores. ${resumo}`);
   novoGrafico("grafico-troca", {
     type: "line",
     data: { labels: rotulos, datasets },
@@ -1829,7 +1974,9 @@ function desenharNutrientes(indices) {
       pointHoverRadius: 4, pointHoverBorderWidth: 2, pointHoverBorderColor: cor("--superficie"), tension: 0, spanGaps: false,
     };
   });
-  document.getElementById("grafico-nutrientes").setAttribute("aria-label", `Custo por tonelada de nutriente no porto, em ${moeda.rotulo}, de ${produtos.map((x) => x.nome).join(", ")}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.`);
+  const resumo = fraseNutrientes(estado.grupo, p[ate], estado.nutrMoeda);
+  texto("resumo-nutrientes", resumo);
+  document.getElementById("grafico-nutrientes").setAttribute("aria-label", `Custo por tonelada de nutriente no porto, em ${moeda.rotulo}, de ${produtos.map((x) => x.nome).join(", ")}, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores. ${resumo}`);
   novoGrafico("grafico-nutrientes", {
     type: "line",
     data: { labels: rotulos, datasets },
@@ -2020,7 +2167,9 @@ function desenharBenchmark(indices) {
     if (pequena(i)) extras.push(`Amostra pequena (menos de ${fmt0.format(bm.corte_amostra_t)} t): FOB ${porTonelada(valor("fob", i))}, CIF ${porTonelada(valor("cif", i))}, fora das linhas`);
     return { titulo: pontos[0].label, linhas, extras };
   });
-  document.getElementById("grafico-bm").setAttribute("aria-label", `${prod.nome}: preço FOB e CIF do Brasil e benchmark do Banco Mundial, em US$ por tonelada, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.`);
+  const frases = frasesBenchmark(estado.bm, indices);
+  texto("resumo-bm", frases.bm);
+  document.getElementById("grafico-bm").setAttribute("aria-label", `${prod.nome}: preço FOB e CIF do Brasil e benchmark do Banco Mundial, em US$ por tonelada, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.${frases.bm ? ` ${frases.bm}` : ""}`);
   novoGrafico("grafico-bm", {
     type: "line",
     data: {
@@ -2045,7 +2194,8 @@ function desenharBenchmark(indices) {
   // Gráfico 2: spread na base comparável, em barras (um eixo só, em %)
   texto("nota-spread", `FOB Brasil − benchmark quando o benchmark é FOB; CIF Brasil − benchmark quando ele já é um preço no destino. Acima de zero, o Brasil pagou mais que a referência.${nPequena ? ` ${nPequena} ${nPequena === 1 ? "mês" : "meses"} com menos de ${fmt0.format(bm.corte_amostra_t)} t ficam fora dos gráficos (estão na tabela).` : ""}`);
   const spreads = semPequena("spread_pct");
-  document.getElementById("grafico-spread").setAttribute("aria-label", `${prod.nome}: spread em relação ao benchmark do Banco Mundial, em porcentagem, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.`);
+  texto("resumo-spread", frases.spread);
+  document.getElementById("grafico-spread").setAttribute("aria-label", `${prod.nome}: spread em relação ao benchmark do Banco Mundial, em porcentagem, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.${frases.spread ? ` ${frases.spread}` : ""}`);
   const escalasSpread = eixosBm((v) => `${fmt0.format(v)}%`);
   escalasSpread.y.grid = { ...escalasSpread.y.grid, color: (c) => (c.tick?.value === 0 ? cor("--eixo") : cor("--grade")) };
   novoGrafico("grafico-spread", {
@@ -2080,7 +2230,8 @@ function desenharBenchmark(indices) {
 
   // Gráfico 3: CIF em reais
   texto("nota-brl", `${prod.nome} · CIF Brasil × PTAX venda média do mês (BCB). A relação de troca com a soja é US$/US$ e não muda com o câmbio.`);
-  document.getElementById("grafico-brl").setAttribute("aria-label", `${prod.nome}: preço CIF do Brasil em reais por tonelada, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.`);
+  texto("resumo-brl", frases.brl);
+  document.getElementById("grafico-brl").setAttribute("aria-label", `${prod.nome}: preço CIF do Brasil em reais por tonelada, de ${rotulos[0]} a ${rotulos[rotulos.length - 1]}. A tabela abaixo traz os valores.${frases.brl ? ` ${frases.brl}` : ""}`);
   novoGrafico("grafico-brl", {
     type: "line",
     data: { labels: rotulos, datasets: [linha("CIF em reais", semPequena("cif_brl_t"), corProd, null)] },
