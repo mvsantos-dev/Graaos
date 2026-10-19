@@ -18,6 +18,10 @@ on:
       - "src/boletim.py"
       - "src/config.py"
       - "src/llm.py"
+      - "src/sinais.py"
+      - "src/eventos.py"
+      - "data/sinais.json" # Sinais do mês, feed sinais.xml e sinais nas páginas dos boletins
+      - "data/eventos.yml" # marcos de mercado nos gráficos (editados à mão)
       - ".github/workflows/pages.yml"
   workflow_dispatch:
   workflow_call:
