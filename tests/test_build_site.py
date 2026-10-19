@@ -30,6 +30,10 @@ def test_monta_o_site_com_os_dados_na_raiz(tmp_path):
     json.loads((saida / "boletim.json").read_text(encoding="utf-8"))
     for arquivo in ("assets/mapa-pontos.json", "assets/fluxos.js", "assets/hero.js", "assets/mapa-hero.js", "assets/lista-espera.js", "assets/radar.css"):
         assert (saida / arquivo).stat().st_size > 0, arquivo
+    # indexação e ícones (src/estatico/cabecalho.py e dashboard/)
+    for arquivo in INDEXACAO:
+        assert (saida / arquivo).stat().st_size > 0, arquivo
+    assert "application/ld+json" in html and '<link rel="canonical" href="https://radar.graaos.cloud/">' in html
     boletim = RAIZ / "boletins" / "latest.json"
     if boletim.exists():
         assert (saida / "boletim.json").read_bytes() == boletim.read_bytes()
@@ -40,7 +44,11 @@ def test_wrangler_publica_a_pasta_do_build():
     sem_comentarios = "\n".join(linha for linha in texto.splitlines() if not linha.lstrip().startswith("//"))
     config = json.loads(sem_comentarios)
     assert config["assets"]["directory"] == "./site"
+    assert config["assets"]["not_found_handling"] == "404-page"  # o 404.html gerado no build
     assert not ({"account_id", "vars"} & set(config)), "nada de conta ou variáveis no repositório público"
+
+
+INDEXACAO = ("robots.txt", "sitemap.xml", "404.html", "llms.txt", "_headers", "site.webmanifest", "favicon-32.png", "favicon-192.png", "favicon-512.png", "apple-touch-icon.png")
 
 
 def _repo_falso(tmp_path: Path, dashboard: str | None, index: bool = True) -> Path:
@@ -48,7 +56,8 @@ def _repo_falso(tmp_path: Path, dashboard: str | None, index: bool = True) -> Pa
     raiz = tmp_path / "repo"
     raiz.mkdir()
     shutil.copy(SCRIPT, raiz / "build_site.sh")
-    shutil.copytree(RAIZ / "dashboard", raiz / "dashboard", ignore=shutil.ignore_patterns("*.png", "*.gif"))
+    # sem as capturas de tela (os ícones PNG entram: o build confere)
+    shutil.copytree(RAIZ / "dashboard", raiz / "dashboard", ignore=shutil.ignore_patterns("print*.png", "preview.png", "*.gif"))
     shutil.copytree(RAIZ / "src", raiz / "src", ignore=shutil.ignore_patterns("__pycache__"))
     if not index:
         (raiz / "dashboard" / "index.html").unlink()
@@ -67,6 +76,29 @@ def test_repo_falso_completo_monta_sem_erro(tmp_path):
     assert r.returncode == 0, r.stderr
     assert "sem histórico do git" in r.stderr  # fora de um repositório git, só avisa
     assert json.loads((raiz / "site" / "boletim.json").read_text()) == {}
+    for arquivo in INDEXACAO:
+        assert (raiz / "site" / arquivo).stat().st_size > 0, arquivo
+    # fora do repositório: sem data de atualização no sitemap e no JSON-LD, e só o dashboard.json para baixar
+    assert "<lastmod>" not in (raiz / "site" / "sitemap.xml").read_text()
+    html = (raiz / "site" / "index.html").read_text(encoding="utf-8")
+    assert "dateModified" not in html and html.count('"@type":"DataDownload"') == 1
+
+
+@pytest.mark.parametrize(
+    ("estragar", "mensagem"),
+    [
+        (lambda raiz: (raiz / "dashboard" / "favicon-192.png").unlink(), "falta favicon-192.png"),
+        (lambda raiz: (raiz / "dashboard" / "site.webmanifest").write_text("{"), "site.webmanifest"),
+        (lambda raiz: (raiz / "dashboard" / "assets" / "mapa-pontos.json").rename(raiz / "dashboard" / "assets" / "outro.json"), "mapa-pontos.json"),
+    ],
+    ids=["sem-icone", "manifest-invalido", "asset-referenciado-sumiu"],
+)
+def test_build_falha_sem_icone_ou_com_referencia_quebrada(tmp_path, estragar, mensagem):
+    raiz = _repo_falso(tmp_path, COMPLETO)
+    estragar(raiz)
+    r = _rodar(raiz, raiz / "site")
+    assert r.returncode == 1
+    assert mensagem in r.stderr
 
 
 @pytest.mark.parametrize(
