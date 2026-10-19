@@ -2583,12 +2583,55 @@ async function carregar() {
   throw new Error("dashboard.json não encontrado");
 }
 
+// O aviso vai no topo do conteúdo, sem apagá-lo: o HTML do build já traz os números e as tabelas.
 function erro(mensagem) {
-  document.getElementById("conteudo").replaceChildren(el("p", { classe: "aviso" }, mensagem));
+  document.getElementById("conteudo").prepend(el("p", { classe: "aviso" }, mensagem));
 }
+
+// --- Lugar da leitura ao recarregar ----------------------------------------------------------
+// O HTML do build já traz o conteúdo estático e o script redesenha por cima, com outras alturas:
+// a restauração do navegador, que volta ao mesmo pixel, cairia noutro trecho da página. Ao sair,
+// a página guarda o elemento com id que estava no topo da tela (e quanto dele já tinha passado)
+// e, ao voltar por recarga ou pelo histórico, rola até ele: logo, com o HTML estático, e de novo
+// depois do primeiro desenho. Se quem lê rolar antes disso, a volta para.
+const LUGAR = "radar:lugar";
+const topoNoDocumento = (no) => { let y = 0; for (let n = no; n; n = n.offsetParent) y += n.offsetTop; return y; };
+function lugarDaLeitura() {
+  const linha = window.scrollY;
+  let melhor = null;
+  for (const no of document.querySelectorAll("body [id]")) {
+    if (!no.offsetParent || no.closest("#barra-topo, details:not([open])")) continue;
+    const y = topoNoDocumento(no);
+    if (y <= linha && (!melhor || y >= melhor.y)) melhor = { id: no.id, y };
+  }
+  return { id: melhor?.id ?? null, desloc: melhor ? linha - melhor.y : 0, y: linha };
+}
+let lugarAoVoltar = null;
+let leitorRolou = false;
+function voltarAoLugar() {
+  if (!lugarAoVoltar || leitorRolou) return;
+  const no = lugarAoVoltar.id && document.getElementById(lugarAoVoltar.id);
+  const y = no && no.offsetParent ? topoNoDocumento(no) + lugarAoVoltar.desloc : lugarAoVoltar.y;
+  window.scrollTo({ top: Math.max(0, y), behavior: "instant" });
+}
+(() => {
+  if (!("scrollRestoration" in history)) return;
+  history.scrollRestoration = "manual";
+  const tipo = performance.getEntriesByType?.("navigation")?.[0]?.type;
+  try {
+    const salvo = JSON.parse(sessionStorage.getItem(LUGAR) || "null");
+    if ((tipo === "reload" || tipo === "back_forward") && salvo && typeof salvo.y === "number") lugarAoVoltar = salvo;
+  } catch { /* sem armazenamento: volta ao topo, como sem o lugar salvo */ }
+  window.addEventListener("pagehide", () => {
+    try { sessionStorage.setItem(LUGAR, JSON.stringify(lugarDaLeitura())); } catch { /* sem armazenamento */ }
+  });
+  const parar = () => { leitorRolou = true; };
+  for (const tipoEvento of ["wheel", "touchstart", "keydown", "mousedown"]) window.addEventListener(tipoEvento, parar, { passive: true, once: true });
+})();
 
 document.addEventListener("DOMContentLoaded", async () => {
   aplicarTema(temaSalvo());
+  voltarAoLugar(); // com o HTML estático; de novo depois do primeiro desenho
   document.getElementById("botao-tema").addEventListener("click", alternarTema);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!temaSalvo()) { aplicarTema(null); if (dados) atualizar(); } });
   // Rolar a página ou tocar fora do diagrama de rotas fecha a dica e o destaque abertos por toque.
@@ -2624,6 +2667,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   lerUrl();
   atualizar();
   for (const id of ["kpis-mes", "kpis-acumulado", "kpis-nutrientes", "kpis-troca"]) contarAoAparecer(id);
+  // o mapa de fluxos e o hero terminam de se montar nos quadros seguintes
+  voltarAoLugar();
+  requestAnimationFrame(() => requestAnimationFrame(voltarAoLugar));
+  document.fonts?.ready.then(() => requestAnimationFrame(voltarAoLugar));
+  setTimeout(() => { voltarAoLugar(); lugarAoVoltar = null; }, 1500);
   let largura = window.innerWidth;
   window.addEventListener("resize", () => {
     if ((window.innerWidth <= 600) !== (largura <= 600)) atualizar();
