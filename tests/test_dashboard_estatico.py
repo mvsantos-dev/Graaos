@@ -27,7 +27,8 @@ TURNSTILE = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explic
 def test_terceiros_so_jsdelivr_turnstile_e_a_funcao_da_lista_de_espera():
     html = (DASH / "index.html").read_text(encoding="utf-8")
     # carregamentos do HTML (src/href de script e link) e @import/url no CSS: só o próprio site e o jsDelivr
-    carregados = re.findall(r'<(?:script|link)[^>]+(?:src|href)="(https?://[^"]+)"', html)
+    # (o <link rel="canonical"> é o endereço da própria página e não carrega nada)
+    carregados = [u for tag, u in re.findall(r'<((?:script|link)[^>]+)(?:src|href)="(https?://[^"]+)"', html) if 'rel="canonical"' not in tag]
     assert carregados and all(u.startswith("https://cdn.jsdelivr.net/npm/") for u in carregados), carregados
     for arquivo in (DASH / "assets").glob("*.css"):
         assert not re.search(r"(?:url\(|@import)\s*[\"']?https?://", arquivo.read_text(encoding="utf-8")), arquivo
