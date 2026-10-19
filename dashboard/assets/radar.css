@@ -1157,4 +1157,19 @@ footer.rodape a { white-space: nowrap; } /* o endereço do repositório não que
 .dica .linha span.serie { color: var(--texto-2); }
 .dica .chave { width: 12px; height: 2px; border-radius: 1px; flex: none; }
 .dica .extra { color: var(--texto-2); margin-top: 2px; white-space: normal; }
+
+/* --- Marcos de mercado (data/eventos.yml): linha nos gráficos, dica e a linha "Marcos" ---- */
+/* --marco: a linha tracejada, discreta; --marco-forte: o losango do topo e a linha sob o ponteiro */
+:root { --marco: rgba(75, 79, 122, 0.5); --marco-forte: #4b4f7a; }
+:root[data-theme="dark"] { --marco: rgba(182, 186, 230, 0.45); --marco-forte: #b6bae6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --marco: rgba(182, 186, 230, 0.45); --marco-forte: #b6bae6; } }
+.chave-marco { flex: none; display: inline-block; width: 7px; height: 7px; background: var(--marco-forte); transform: rotate(45deg); }
+.dica .marco { display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--grade); white-space: normal; }
+.dica .marco + .marco { margin-top: 4px; padding-top: 0; border-top: 0; }
+.dica .marco .chave-marco { margin-top: 4px; }
+.dica .marco strong { display: block; font-weight: 600; }
+.dica .marco .fonte { display: block; color: var(--texto-2); }
+.cartao .marcos { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--texto-2); overflow-wrap: anywhere; }
+.cartao .marcos .marcos-rotulo { display: inline-flex; align-items: center; gap: 7px; margin-right: 2px; font-weight: 600; }
+.cartao .marcos a { color: var(--titulo); text-underline-offset: 2px; }
 .oculto { display: none !important; }
